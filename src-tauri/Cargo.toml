@@ -1,6 +1,6 @@
 [package]
 name = "ledge"
-version = "0.9.5"
+version = "0.9.7"
 description = "A smart dock that replaces the Windows 11 taskbar, with live widgets"
 edition = "2024"
 rust-version = "1.90"

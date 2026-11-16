@@ -105,7 +105,15 @@ fn window_minimize(hwnd: i64) {
 
 #[tauri::command]
 async fn launch(path: String) -> Res<bool> {
-    blocking(move || shell::run(move || shell::launch(&path)).unwrap_or(false)).await
+    blocking(move || {
+        shell::run(move || match path.strip_prefix("shell:AppsFolder\\") {
+            // Per-profile browser IDs need more than ShellExecute (see shell::launch_app_id).
+            Some(aumid) => shell::launch_app_id(aumid),
+            None => shell::launch(&path),
+        })
+        .unwrap_or(false)
+    })
+    .await
 }
 
 /// App icon as a PNG data URL. Tries `primary`, then `fallback`.
@@ -114,7 +122,13 @@ async fn icon(primary: String, fallback: Option<String>, size: Option<i32>) -> R
     let size = size.unwrap_or(64).clamp(16, 256);
     blocking(move || {
         shell::run(move || {
-            shell::icon(&primary, size).or_else(|| fallback.as_deref().and_then(|f| shell::icon(f, size)))
+            shell::icon(&primary, size)
+                // A browser profile's app ID has no icon of its own; its shortcut shows the profile's avatar.
+                .or_else(|| {
+                    let aumid = primary.strip_prefix("shell:AppsFolder\\")?;
+                    shell::shortcut_for(aumid).and_then(|lnk| shell::icon(&lnk.to_string_lossy(), size))
+                })
+                .or_else(|| fallback.as_deref().and_then(|f| shell::icon(f, size)))
         })
         .flatten()
     })

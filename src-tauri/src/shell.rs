@@ -296,6 +296,108 @@ pub fn launch(path: &str) -> bool {
     r.0 as isize > 32
 }
 
+fn launch_with_args(file: &str, args: &str) -> bool {
+    let r = unsafe { ShellExecuteW(None, w!("open"), &HSTRING::from(file), &HSTRING::from(args), PCWSTR::null(), SW_SHOWNORMAL) };
+    r.0 as isize > 32
+}
+
+/// Folders where Windows and browsers keep app shortcuts (Desktop may be in OneDrive).
+fn shortcut_dirs() -> Vec<std::path::PathBuf> {
+    let mut v = Vec::new();
+    if let Some(d) = dirs::desktop_dir() {
+        v.push(d);
+    }
+    if let Ok(p) = std::env::var("PUBLIC") {
+        v.push(Path::new(&p).join("Desktop"));
+    }
+    if let Some(d) = dirs::data_dir() {
+        v.push(d.join("Microsoft").join("Windows").join("Start Menu").join("Programs"));
+        v.push(d.join("Microsoft").join("Internet Explorer").join("Quick Launch").join("User Pinned").join("TaskBar"));
+    }
+    if let Ok(p) = std::env::var("ProgramData") {
+        v.push(Path::new(&p).join("Microsoft").join("Windows").join("Start Menu").join("Programs"));
+    }
+    v
+}
+
+/// A shortcut (.lnk) whose app ID is `aumid` — e.g. a Chrome profile's desktop shortcut.
+/// Scanning takes about a second, so answers are remembered.
+pub fn shortcut_for(aumid: &str) -> Option<std::path::PathBuf> {
+    static FOUND: LazyLock<Mutex<HashMap<String, Option<std::path::PathBuf>>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+    let key = aumid.to_ascii_lowercase();
+    if let Some(hit) = FOUND.lock().unwrap_or_else(|e| e.into_inner()).get(&key) {
+        if hit.as_ref().is_none_or(|p| p.exists()) {
+            return hit.clone();
+        }
+    }
+    let hit = shortcut_scan(aumid);
+    FOUND.lock().unwrap_or_else(|e| e.into_inner()).insert(key, hit.clone());
+    hit
+}
+
+fn shortcut_scan(aumid: &str) -> Option<std::path::PathBuf> {
+    fn scan(dir: &Path, depth: u32, aumid: &str) -> Option<std::path::PathBuf> {
+        for e in std::fs::read_dir(dir).ok()?.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                if depth > 0 {
+                    if let Some(hit) = scan(&p, depth - 1, aumid) {
+                        return Some(hit);
+                    }
+                }
+            } else if p.extension().is_some_and(|x| x.eq_ignore_ascii_case("lnk")) {
+                if read_lnk(&p).1.is_some_and(|a| a.eq_ignore_ascii_case(aumid)) {
+                    return Some(p);
+                }
+            }
+        }
+        None
+    }
+    shortcut_dirs().iter().find_map(|d| scan(d, 2, aumid))
+}
+
+/// "Profile19" -> "Profile 19" (browsers drop the space in the app ID).
+pub fn spaced_profile(s: &str) -> String {
+    match s.find(|c: char| c.is_ascii_digit()) {
+        Some(i) if i > 0 && !s[..i].ends_with(' ') => format!("{} {}", &s[..i], &s[i..]),
+        _ => s.to_string(),
+    }
+}
+
+/// (browser exe, profile folder) for a per-profile browser app ID such as
+/// "Chrome.UserData.Profile19", when that profile exists on this PC.
+pub fn browser_profile(aumid: &str) -> Option<(&'static str, String)> {
+    let parts: Vec<&str> = aumid.splitn(3, '.').collect();
+    if parts.len() != 3 || !parts[1].eq_ignore_ascii_case("UserData") {
+        return None;
+    }
+    let local = dirs::data_local_dir()?;
+    let (exe, data) = match parts[0].to_ascii_lowercase().as_str() {
+        "chrome" => ("chrome.exe", local.join("Google").join("Chrome").join("User Data")),
+        "msedge" => ("msedge.exe", local.join("Microsoft").join("Edge").join("User Data")),
+        "brave" => ("brave.exe", local.join("BraveSoftware").join("Brave-Browser").join("User Data")),
+        _ => return None,
+    };
+    [parts[2].to_string(), spaced_profile(parts[2])].into_iter().find(|d| data.join(d).is_dir()).map(|d| (exe, d))
+}
+
+/// Opens an app by ID. Chrome, Edge and Brave give each profile its own ID
+/// ("Chrome.UserData.Profile19"): it groups that profile's windows but isn't a
+/// Start-menu entry, so `shell:AppsFolder\…` can't open it. For those, use the
+/// profile's own shortcut, or start the browser on that profile.
+pub fn launch_app_id(aumid: &str) -> bool {
+    if launch(&format!("shell:AppsFolder\\{aumid}")) {
+        return true;
+    }
+    if let Some(lnk) = shortcut_for(aumid) {
+        return launch(&lnk.to_string_lossy());
+    }
+    match browser_profile(aumid) {
+        Some((exe, dir)) => launch_with_args(exe, &format!("--profile-directory=\"{dir}\"")),
+        None => false,
+    }
+}
+
 // ---------- shell keys ----------
 
 fn key(vk: VIRTUAL_KEY, up: bool) -> INPUT {
@@ -485,4 +587,29 @@ pub fn wallpaper() -> Wallpaper {
         *c = Some(w.clone());
     }
     w
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "reads this PC's shortcuts and Chrome profiles"]
+    fn live_profile_resolution() {
+        unsafe {
+            let _ = windows::Win32::System::Com::CoInitializeEx(None, windows::Win32::System::Com::COINIT_APARTMENTTHREADED);
+        }
+        for id in ["Chrome.UserData.Profile19", "Chrome.UserData.Profile16", "Chrome.UserData.Profile13"] {
+            println!("{id}: shortcut={:?} profile={:?}", shortcut_for(id), browser_profile(id));
+        }
+    }
+
+    #[test]
+    fn spaces_browser_profiles() {
+        assert_eq!(spaced_profile("Profile19"), "Profile 19");
+        assert_eq!(spaced_profile("Default"), "Default");
+        assert_eq!(spaced_profile("Profile 3"), "Profile 3");
+        assert!(browser_profile("Notepad").is_none());
+        assert!(browser_profile("Chrome.UserData.NoSuchProfile123").is_none());
+    }
 }

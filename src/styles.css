@@ -1355,3 +1355,26 @@ html[data-view="bar"][data-style] .clock-tile.flipdock,
 html[data-view="bar"][data-style] .apps-group { border-radius: 22px !important; }
 .dock-row > :first-child .card, .dock-row > :last-child .clock-tile { border-radius: 22px !important; }
 .dock { padding-left: 6px !important; padding-right: 6px !important; }
+
+
+/* The frost is a rectangle inside the pill: tint the slivers at the round ends so they
+   read as the glass's thick edge, not as unblurred background. */
+.dock-shell .glass::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(90deg, rgba(var(--tint-rgb), 0.62) 0, rgba(var(--tint-rgb), 0.45) 9px, rgba(var(--tint-rgb), 0) 15px,
+    rgba(var(--tint-rgb), 0) calc(100% - 15px), rgba(var(--tint-rgb), 0.45) calc(100% - 9px), rgba(var(--tint-rgb), 0.62) 100%);
+}
+html[data-view="bar"][data-tone="light"] .dock-shell .glass::before {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.7) 0, rgba(255, 255, 255, 0.5) 9px, transparent 15px, transparent calc(100% - 15px), rgba(255, 255, 255, 0.5) calc(100% - 9px), rgba(255, 255, 255, 0.7) 100%);
+}
+
+/* tighter frost (3.5 / 14 DIP): thinner rim band, end caps reach a little further */
+.dock-shell .glass::after, .dock-shell.s-black .glass::after, .dock-shell.s-custom .glass::after,
+.dock-shell.s-liquid .glass::after, .dock-shell.s-ios .glass::after {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32), inset 0 0 0 4px rgba(var(--tint-rgb), 0.5) !important;
+}
+.dock-shell.s-midnight .glass::after { box-shadow: inset 0 0 0 1px rgba(175, 185, 255, 0.36), inset 0 0 0 4px rgba(40, 46, 120, 0.5) !important; }
+.dock-shell .glass::before {
+  background: linear-gradient(90deg, rgba(var(--tint-rgb), 0.7) 0, rgba(var(--tint-rgb), 0.5) 11px, rgba(var(--tint-rgb), 0) 18px,
+    rgba(var(--tint-rgb), 0) calc(100% - 18px), rgba(var(--tint-rgb), 0.5) calc(100% - 11px), rgba(var(--tint-rgb), 0.7) 100%) !important;
+}

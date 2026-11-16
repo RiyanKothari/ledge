@@ -104,29 +104,27 @@ fn create_frost(dock: HWND) {
             return;
         };
         crate::flyout::blur_behind(h, FROST_STATE.load(Ordering::SeqCst), FROST_COLOR.load(Ordering::SeqCst));
-        // Windows ignores window regions for this blur (it stayed a square), but it
-        // does honour its own rounded corners — which also add a soft floating shadow.
-        {
-            use windows::Win32::Graphics::Dwm::{DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND, DwmSetWindowAttribute};
-            let pref = DWMWCP_ROUND;
-            let _ = DwmSetWindowAttribute(h, DWMWA_WINDOW_CORNER_PREFERENCE, &pref as *const _ as *const _, size_of_val(&pref) as u32);
-        }
+        // No Windows-rounded corners here: they bring a drop shadow whose rounded-rect
+        // outline showed past the pill's circular ends. The frost is a plain rectangle
+        // kept wholly inside the pill (place_frost).
         FROST.store(h.0 as isize, Ordering::SeqCst);
         SetWindowLongPtrW(dock, GWLP_HWNDPARENT, h.0 as isize);
     }
 }
 
-/// The dock is a full pill (corner radius = half its height, 27 DIPs). Windows'
-/// rounded blur corner is only 8 DIPs; inset 6 DIPs it nests inside the pill's
-/// round ends, and CSS draws a glass rim over the thin band left at the edge.
+/// The dock is a full pill (end radius = half its height). Windows can't shape this
+/// blur, so it's a rectangle inset 3.5 DIPs top and bottom and 14 DIPs at each end —
+/// then its square corners sit inside the circular ends. CSS tints the slivers left
+/// at the very ends and draws the glass rim.
 
 fn place_frost(left: i32, top: i32, w: i32, h: i32, scale: f64) {
     let Some(f) = frost() else { return };
-    let inset = (6.0 * scale).round() as i32;
-    let (fw, fh) = (w - 2 * inset, h - 2 * inset);
+    // 3.5 top/bottom and 14 at the ends keeps the rectangle's corners inside the round ends.
+    let (iy, ix) = ((3.5 * scale).round() as i32, (14.0 * scale).round() as i32);
+    let (fw, fh) = ((w - 2 * ix).max(1), (h - 2 * iy).max(1));
     *FROST_SIZE.lock().unwrap_or_else(|e| e.into_inner()) = (fw, fh);
     unsafe {
-        let _ = SetWindowPos(f, Some(HWND_TOPMOST), left + inset, top + inset, fw, fh, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        let _ = SetWindowPos(f, Some(HWND_TOPMOST), left + ix, top + iy, fw, fh, SWP_NOACTIVATE | SWP_SHOWWINDOW);
     }
 }
 
