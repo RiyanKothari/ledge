@@ -1,0 +1,30 @@
+{
+  "name": "ledge",
+  "private": true,
+  "version": "0.6.0",
+  "type": "module",
+  "description": "A smart dock that replaces the Windows 11 taskbar, with live widgets",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "tauri": "tauri",
+    "desktop": "tauri dev",
+    "desktop:build": "tauri build",
+    "test:rust": "cd src-tauri && cargo test --lib",
+    "verify": "tsc -b && npm run test:rust && vite build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "~7.0.2",
+    "vite": "^8.3.6"
+  },
+  "license": "MIT"
+}
