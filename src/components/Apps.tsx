@@ -26,6 +26,9 @@ const exeName = (p: string) => {
 
 /** Explicit app IDs win when both sides have one; otherwise match on the executable. */
 function belongs(pin: Pin, w: WinInfo): boolean {
+  // File Explorer's pin has no exe target, and its windows often carry no app ID:
+  // match them by explorer.exe, or every folder window becomes a separate "app".
+  if (lc(pin.aumid) === "microsoft.windows.explorer") return lc(w.exe).endsWith("\\explorer.exe") || lc(w.aumid) === "microsoft.windows.explorer";
   if (pin.aumid && w.aumid) return lc(pin.aumid) === lc(w.aumid);
   return !!pin.target && lc(pin.target) === lc(w.exe);
 }

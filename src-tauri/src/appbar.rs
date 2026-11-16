@@ -104,23 +104,29 @@ fn create_frost(dock: HWND) {
             return;
         };
         crate::flyout::blur_behind(h, FROST_STATE.load(Ordering::SeqCst), FROST_COLOR.load(Ordering::SeqCst));
-        // No Windows-rounded corners here: they bring a drop shadow whose rounded-rect
-        // outline showed past the pill's circular ends. The frost is a plain rectangle
-        // kept wholly inside the pill (place_frost).
+        // Windows' own rounded corners (the blur ignores window regions). No border
+        // line: that thin grey outline is what showed past the pill's ends. Its soft
+        // shadow stays, as the dock's drop shadow.
+        {
+            use windows::Win32::Graphics::Dwm::{DWMWA_BORDER_COLOR, DWMWA_COLOR_NONE, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND, DwmSetWindowAttribute};
+            let pref = DWMWCP_ROUND;
+            let _ = DwmSetWindowAttribute(h, DWMWA_WINDOW_CORNER_PREFERENCE, &pref as *const _ as *const _, size_of_val(&pref) as u32);
+            let none = DWMWA_COLOR_NONE;
+            let _ = DwmSetWindowAttribute(h, DWMWA_BORDER_COLOR, &none as *const _ as *const _, size_of_val(&none) as u32);
+        }
         FROST.store(h.0 as isize, Ordering::SeqCst);
         SetWindowLongPtrW(dock, GWLP_HWNDPARENT, h.0 as isize);
     }
 }
 
-/// The dock is a full pill (end radius = half its height). Windows can't shape this
-/// blur, so it's a rectangle inset 3.5 DIPs top and bottom and 14 DIPs at each end —
-/// then its square corners sit inside the circular ends. CSS tints the slivers left
-/// at the very ends and draws the glass rim.
+/// The dock is a full pill (end radius = half its height). Windows can only round
+/// this blur's corners a little (8 DIPs), so it's inset 6 DIPs all round, where it
+/// nests inside the circular ends; CSS draws an even glass rim over that band.
 
 fn place_frost(left: i32, top: i32, w: i32, h: i32, scale: f64) {
     let Some(f) = frost() else { return };
-    // 3.5 top/bottom and 14 at the ends keeps the rectangle's corners inside the round ends.
-    let (iy, ix) = ((3.5 * scale).round() as i32, (14.0 * scale).round() as i32);
+    // An 8 DIP rounded rectangle inset 6 DIPs all round nests inside the pill's round ends.
+    let (iy, ix) = ((6.0 * scale).round() as i32, (6.0 * scale).round() as i32);
     let (fw, fh) = ((w - 2 * ix).max(1), (h - 2 * iy).max(1));
     *FROST_SIZE.lock().unwrap_or_else(|e| e.into_inner()) = (fw, fh);
     unsafe {
