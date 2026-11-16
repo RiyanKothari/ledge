@@ -1132,3 +1132,16 @@ html[data-view="welcome"], html[data-view="welcome"] body { background: #0d0d12;
 .w-ghost { padding: 9px 16px; border-radius: 12px; color: var(--muted); background: var(--card); cursor: pointer; }
 .w-ghost:hover { color: var(--text); background: var(--card-hi); }
 .settings2 .tour-btn { margin-top: 14px; padding: 8px 14px; border-radius: 9px; background: var(--card-hi); color: var(--text); }
+
+/* ===== the dock wears the panels' glass: real frost behind (see appbar::create_frost),
+   a light sheen on top, and only a whisper of the chosen tint ===== */
+.dock-shell .glass, .dock-shell.s-liquid .glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02) 35%, rgba(8, 8, 14, 0.3)), rgba(var(--tint-rgb), calc(var(--tint-a) * 0.35)) !important;
+}
+.dock-shell .glass::after, .dock-shell.s-liquid .glass::after {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 45%) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+}
+.dock-shell .dock { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+html[data-view="bar"][data-tone="light"] .dock-shell .glass { background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.28)), rgba(var(--tint-rgb), 0.35) !important; }
+html[data-view="bar"][data-tone="light"] .dock-shell .dock { text-shadow: none; }

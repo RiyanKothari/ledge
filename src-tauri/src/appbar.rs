@@ -87,7 +87,8 @@ fn create_frost(dock: HWND) {
         ) else {
             return;
         };
-        crate::flyout::acrylic(h, 0x14101010);
+        // Same frost as the Control Center and clock panels.
+        crate::flyout::acrylic(h, 0x4C1A1414);
         FROST.store(h.0 as isize, Ordering::SeqCst);
         SetWindowLongPtrW(dock, GWLP_HWNDPARENT, h.0 as isize);
     }
