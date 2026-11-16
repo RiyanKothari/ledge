@@ -1,7 +1,60 @@
 # Ledge
 
-A floating glass dock that replaces the Windows 11 taskbar — and every Windows flyout it used to open. Pinned and
-running apps, live widgets, and Ledge's own Control Center, notification center and banners. Tauri 2 (Rust + React).
+A floating glass dock that replaces the Windows 11 taskbar — and every Windows flyout it used to open. Your apps, live
+widgets (music with lyrics, calendar, battery, notifications, weather, Claude usage…), Ledge's own Control Center,
+window previews, a calendar, and voice commands ("Hey Ledge, open WhatsApp").
+
+## Install it (2 minutes)
+
+**You need:** Windows 11, 64-bit.
+
+1. **Download** `Ledge_0.8.0_x64-setup.exe` from the [latest release](https://github.com/RiyanKothari/ledge/releases/latest)
+   (under *Assets*).
+2. **Run it.** The installer isn't code-signed yet, so Windows may show *"Windows protected your PC"* — click
+   **More info → Run anyway**. It installs just for you (no admin needed) in a few seconds.
+3. **Ledge opens a short welcome tour.** It walks you through:
+   - **Your taskbar** — Ledge hides the Windows taskbar and becomes yours. Quitting Ledge always brings the old one back.
+   - **Make it yours** — pick a dock style (Black, White, Liquid, iOS, Midnight) and a colour.
+   - **Voice** — try a command, and choose whether Ledge listens for "Hey Ledge" (off by default; it keeps the mic on).
+   - **Connect things** (optional) — your city for weather, a calendar, Claude usage.
+4. That's it. **Touch the bottom edge of the screen** and the dock slides up.
+
+### Getting around
+
+| Do this | And you get |
+| --- | --- |
+| Touch the bottom edge, or press **Alt + `** | The dock |
+| Click the **clock** | Notifications, calendar (⤢ for the full month), apps running in the background |
+| Click **Wi-Fi / volume** | Control Center: Wi-Fi, Bluetooth, brightness, sound, Do not disturb |
+| Hover an open app | Previews of its windows — click one to switch |
+| Drag apps or widgets | Reorder them. **Right-click a widget** to hide or move it |
+| Press **Ctrl + Alt + L** or the 🎤, or say **"Hey Ledge"** | Voice: "open Chrome", "pause", "next song", "volume 40", "show my calendar" |
+| Right-click the dock | Settings, Task Manager, and **Quit** (restores the Windows taskbar) |
+
+Settings (right-click the dock → Ledge settings) can show the welcome tour again.
+
+### Uninstall, or get the Windows taskbar back
+
+- **Quit:** right-click the dock → *Quit Ledge* — the Windows taskbar comes straight back.
+- **Uninstall:** Windows Settings → Apps → Installed apps → Ledge → Uninstall. The uninstaller restores the taskbar and
+  stops Ledge starting at sign-in.
+- **If the taskbar is ever missing:** open Task Manager (Ctrl + Shift + Esc) → find *Windows Explorer* → **Restart**. Or
+  run `%LOCALAPPDATA%\Ledge\ledge.exe --restore-taskbar`.
+
+### Found a bug?
+
+Open an issue on this repo (what you did, what happened, a screenshot if you can) or tell Riyan.
+
+## What's new in 0.8
+
+- A **welcome tour** on first launch that sets everything up, and a friendlier installer that cleanly upgrades and
+  uninstalls (it always puts the Windows taskbar back).
+- "Hey Ledge" is off until you turn it on; SongSeam shortcuts only show when SongSeam is installed.
+
+## What's new in 0.7
+
+- **Voice**: Ctrl + Alt + L, the dock's mic, or "Hey Ledge" — recognised by Windows on your PC, nothing sent anywhere.
+- A frosted dock (text behind it no longer shows through), glass panels, a glowing listening orb.
 
 ## What's new in 0.6
 
@@ -106,7 +159,7 @@ npm install
 npm run desktop
 ```
 
-`npm run desktop:build` makes `src-tauri/target/release/bundle/nsis/Ledge_0.4.0_x64-setup.exe`. Installed builds start
+`npm run desktop:build` makes `src-tauri/target/release/bundle/nsis/Ledge_<version>_x64-setup.exe`. Installed builds start
 at sign-in (Settings → Startup), which is what makes Ledge your taskbar. `npm run verify` type-checks, runs the Rust
 tests and builds the UI. Hardware checks that only read (or write back the same brightness):
 `cd src-tauri && cargo test --lib live_ -- --ignored --nocapture`.
@@ -118,7 +171,7 @@ crash. Otherwise run `ledge --restore-taskbar`, or restart Windows Explorer from
 
 ## Known limits
 
-- Primary monitor only.
+- Primary monitor only (the dock and its panels show on your main display).
 - Wi-Fi network names need Settings → Privacy → Location → "Let desktop apps access your location".
 - Bluetooth connect/disconnect works for audio devices; other devices show their state. Pairing new devices opens Windows Settings.
 - Energy saver can only switch on while on battery (that's how Windows' setting works).

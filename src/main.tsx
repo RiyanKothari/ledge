@@ -7,13 +7,14 @@ import Preview from "./Preview";
 import Settings from "./Settings";
 import Toast from "./Toast";
 import Voice from "./Voice";
+import Welcome from "./Welcome";
 import "./styles.css";
 
 const label = getCurrentWindow().label;
-const view = (["settings", "flyout", "toast", "preview", "voice"] as const).find((v) => v === label) ?? "bar";
+const view = (["settings", "flyout", "toast", "preview", "voice", "welcome"] as const).find((v) => v === label) ?? "bar";
 document.documentElement.dataset.view = view;
 
-const Root = { bar: Dock, flyout: Flyout, toast: Toast, settings: Settings, preview: Preview, voice: Voice }[view];
+const Root = { bar: Dock, flyout: Flyout, toast: Toast, settings: Settings, preview: Preview, voice: Voice, welcome: Welcome }[view];
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Root />

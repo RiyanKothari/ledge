@@ -101,8 +101,10 @@ pub struct Config {
     pub appearance: Appearance,
     /// Background-app (tray) icons, left to right, by executable path.
     pub tray_order: Vec<String>,
-    /// Listen for "Hey Ledge" (keeps the microphone on).
+    /// Listen for "Hey Ledge" (keeps the microphone on). Off until the person turns it on.
     pub wake_word: bool,
+    /// The first-run welcome tour has been completed (or skipped).
+    pub onboarded: bool,
 }
 
 fn default_portfolio() -> String {
@@ -137,14 +139,15 @@ impl Default for Config {
             claude_web: false,
             appearance: Appearance::default(),
             tray_order: Vec::new(),
-            wake_word: true,
+            wake_word: false,
+            onboarded: false,
         }
     }
 }
 
 static CONFIG: Mutex<Option<Config>> = Mutex::new(None);
 
-const CURRENT_VERSION: u32 = 2;
+const CURRENT_VERSION: u32 = 3;
 
 /// One-time upgrades for files written by older versions.
 pub fn migrate(c: &mut Config) -> bool {
@@ -155,6 +158,11 @@ pub fn migrate(c: &mut Config) -> bool {
         // v0.3: auto-hide dock and live Claude limits became the defaults the user asked for.
         c.dock_autohide = true;
         c.claude_live_limits = true;
+    }
+    if c.config_version < 3 {
+        // v0.8: people already using Ledge skip the welcome tour and keep "Hey Ledge" on.
+        c.onboarded = true;
+        c.wake_word = true;
     }
     c.config_version = CURRENT_VERSION;
     true
@@ -173,7 +181,8 @@ fn path() -> PathBuf {
 pub fn load() -> Config {
     let p = path();
     let cfg = match std::fs::read_to_string(&p) {
-        Ok(text) => match serde_json::from_str::<Config>(&text) {
+        // Notepad and PowerShell can add a byte-order mark; it isn't corruption.
+        Ok(text) => match serde_json::from_str::<Config>(text.trim_start_matches('\u{feff}')) {
             Ok(mut c) => {
                 if migrate(&mut c) {
                     *CONFIG.lock().unwrap_or_else(|e| e.into_inner()) = Some(c.clone());
@@ -227,6 +236,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_byte_order_mark_is_not_corruption() {
+        let text = "\u{feff}{\"city\":\"Pune\"}";
+        assert!(serde_json::from_str::<Config>(text).is_err(), "serde alone rejects it");
+        let c: Config = serde_json::from_str(text.trim_start_matches('\u{feff}')).unwrap();
+        assert_eq!(c.city, "Pune");
+    }
+
+    #[test]
     fn missing_fields_take_defaults() {
         let c: Config = serde_json::from_str(r#"{"city":"Pune"}"#).unwrap();
         assert_eq!(c.city, "Pune");
@@ -239,6 +256,9 @@ mod tests {
         assert!(old.claude_live_limits && old.dock_autohide && old.config_version == CURRENT_VERSION);
         old.dock_autohide = false;
         assert!(!migrate(&mut old), "only once");
+        assert!(old.onboarded && old.wake_word, "existing users skip the tour and keep Hey Ledge");
+        let fresh = Config::default();
+        assert!(!fresh.onboarded && !fresh.wake_word, "new installs get the tour; the mic stays off");
         assert!(!old.dock_autohide, "later choices stick");
     }
 }

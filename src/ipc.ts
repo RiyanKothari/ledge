@@ -53,6 +53,7 @@ export type Config = {
   appearance: Appearance;
   trayOrder: string[];
   wakeWord: boolean;
+  onboarded: boolean;
 };
 
 export type DockStyle = "black" | "white" | "liquid" | "ios" | "midnight" | "custom";

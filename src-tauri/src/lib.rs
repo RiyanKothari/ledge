@@ -364,6 +364,29 @@ async fn open_settings(app: AppHandle) -> Res<()> {
     open_settings_window(&app).await
 }
 
+/// The first-run welcome tour (also from Settings → General).
+#[tauri::command]
+async fn open_welcome(app: AppHandle) -> Res<()> {
+    open_welcome_window(&app)
+}
+
+pub(crate) fn open_welcome_window(app: &AppHandle) -> Res<()> {
+    if let Some(w) = app.get_webview_window("welcome") {
+        let _ = w.show();
+        let _ = w.set_focus();
+        return Ok(());
+    }
+    WebviewWindowBuilder::new(app, "welcome", WebviewUrl::App("index.html".into()))
+        .title("Welcome to Ledge")
+        .inner_size(860.0, 620.0)
+        .resizable(false)
+        .center()
+        .theme(Some(tauri::Theme::Dark))
+        .build()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
 pub(crate) async fn open_settings_window(app: &AppHandle) -> Res<()> {
     let app = app.clone();
     if let Some(w) = app.get_webview_window("settings") {
@@ -468,6 +491,7 @@ pub fn run() {
             dock_peek,
             voice_listen,
             voice_hotkey,
+            open_welcome,
             dock_covered,
             preview_show,
             preview_hide,
@@ -507,6 +531,9 @@ pub fn run() {
             phone::spawn(h.clone());
             tray::spawn(h.clone());
             preview::spawn_watcher();
+            if !config::get().onboarded {
+                let _ = open_welcome_window(&h);
+            }
             if config::get().wake_word {
                 // After the app list is warm, so "Hey Ledge, open …" knows your apps.
                 let hw = h.clone();

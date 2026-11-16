@@ -94,6 +94,11 @@ const SONGSEAM = "shell:AppsFolder\\app.songseam.desktop";
 /** SongSeam, inside the player: synced lyrics here, and its glow and Mood DJ one tap away. */
 function SongSeamLyrics({ m, pos }: { m: NowPlaying; pos: number }) {
   const { lyrics, loading } = useLyrics(m.title, m.artist, m.durationMs);
+  // The SongSeam shortcuts only make sense when SongSeam is installed.
+  const [songseam, setSongseam] = useState(false);
+  useEffect(() => {
+    call.apps().then((apps) => setSongseam(apps.some((a) => a.id === "app.songseam.desktop")));
+  }, []);
   const lines = lyrics?.lines.filter((l) => l.text) ?? [];
   const i = lyrics?.synced ? currentLine(lines, pos) : -1;
   const show = lyrics?.synced ? [i - 1, i, i + 1, i + 2].map((k) => ({ k, line: lines[k] })) : lines.slice(0, 4).map((line, k) => ({ k, line }));
@@ -122,6 +127,7 @@ function SongSeamLyrics({ m, pos }: { m: NowPlaying; pos: number }) {
           )
         )}
       </div>
+      {songseam && (
       <div className="ss-bar">
         <span className="ss-brand">SongSeam</span>
         <button className="ss-btn" onClick={() => call.launch(SONGSEAM)} title="Album-colour glow around your screen, from the music">
@@ -134,6 +140,7 @@ function SongSeamLyrics({ m, pos }: { m: NowPlaying; pos: number }) {
           Lyrics overlay
         </button>
       </div>
+      )}
     </div>
   );
 }

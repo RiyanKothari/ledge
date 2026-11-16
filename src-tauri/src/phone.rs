@@ -57,7 +57,7 @@ fn utf16(buf: &[u8]) -> String {
     String::from_utf16_lossy(&w)
 }
 
-/// "Riyan's S24 FE Hands-Free HF" → "Riyan's S24 FE"
+/// "Sam's Galaxy S24 Hands-Free HF" → "Sam's Galaxy S24"
 pub fn phone_name(device: &str) -> String {
     let mut s = device.to_string();
     for suffix in [" Hands-Free HF", " Hands-Free AG", " Hands-Free", " Audio Gateway"] {
@@ -150,7 +150,7 @@ pub fn spawn(app: AppHandle) {
 mod tests {
     #[test]
     fn strips_profile_suffixes() {
-        assert_eq!(super::phone_name("Riyan's S24 FE Hands-Free HF"), "Riyan's S24 FE");
+        assert_eq!(super::phone_name("Sam's Galaxy S24 Hands-Free HF"), "Sam's Galaxy S24");
         assert_eq!(super::phone_name("Pixel 9"), "Pixel 9");
     }
 
