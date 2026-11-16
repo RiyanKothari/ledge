@@ -89,8 +89,6 @@ pub fn toggle_peek() {
         *PEEK.lock().unwrap_or_else(|e| e.into_inner()) = None;
         FORCE_HIDE.store(true, Ordering::SeqCst);
     } else {
-        capture_backdrop();
-        std::thread::sleep(std::time::Duration::from_millis(60));
         *PEEK.lock().unwrap_or_else(|e| e.into_inner()) = Some(std::time::Instant::now());
     }
 }
@@ -233,11 +231,8 @@ pub fn spawn_autohide() {
                     }
                 } else if at_edge && !is_foreground_fullscreen(mon) {
                     // Hidden: a short dwell on the edge avoids flicker when flinging the mouse.
-                    if edge_since.is_none() {
-                        capture_backdrop();
-                    }
                     let since = *edge_since.get_or_insert_with(std::time::Instant::now);
-                    if since.elapsed() > std::time::Duration::from_millis(90) { 1.0 } else { 0.0 }
+                    if since.elapsed() > std::time::Duration::from_millis(70) { 1.0 } else { 0.0 }
                 } else {
                     edge_since = None;
                     0.0
@@ -400,66 +395,6 @@ fn covered_now() -> bool {
         let _ = EnumWindows(Some(each), LPARAM(&mut ctx as *mut _ as isize));
     }
     ctx.hit
-}
-
-/// Takes a picture of the screen strip the dock is about to cover (it's parked
-/// off-screen, so this is exactly what will sit behind the glass) and hands it
-/// to the dock page, which frosts or refracts it. Runs off the cursor thread.
-pub fn capture_backdrop() {
-    if !autohide() || shown() > 0.0 {
-        return;
-    }
-    std::thread::spawn(|| {
-        use windows::Win32::Graphics::Gdi::{
-            BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC, HALFTONE, HGDIOBJ, ReleaseDC,
-            SRCCOPY, SelectObject, SetBrushOrgEx, SetStretchBltMode, StretchBlt,
-        };
-        let (mon, scale) = monitor();
-        let (l, t, r, b) = *DOCK.lock().unwrap_or_else(|e| e.into_inner());
-        if r <= l {
-            return;
-        }
-        let m = px(90, scale);
-        let (x0, y0, x1, y1) = ((l - m).max(mon.left), (t - m).max(mon.top), (r + m).min(mon.right), (b + m).min(mon.bottom));
-        let (w, h) = (x1 - x0, y1 - y0);
-        // Half resolution is plenty under frosting; Liquid wants every pixel.
-        let liquid = crate::config::get().appearance.style == "liquid";
-        let (tw, th) = if liquid { (w, h) } else { (w / 2, h / 2) };
-        let url = unsafe {
-            let screen = GetDC(None);
-            let dc = CreateCompatibleDC(Some(screen));
-            let bmp = CreateCompatibleBitmap(screen, tw, th);
-            let old = SelectObject(dc, HGDIOBJ(bmp.0));
-            if liquid {
-                let _ = BitBlt(dc, 0, 0, w, h, Some(screen), x0, y0, SRCCOPY);
-            } else {
-                SetStretchBltMode(dc, HALFTONE);
-                let _ = SetBrushOrgEx(dc, 0, 0, None);
-                let _ = StretchBlt(dc, 0, 0, tw, th, Some(screen), x0, y0, w, h, SRCCOPY);
-            }
-            SelectObject(dc, old);
-            let _ = DeleteDC(dc);
-            ReleaseDC(None, screen);
-            let url = crate::shell::bitmap_data_url(bmp);
-            let _ = DeleteObject(HGDIOBJ(bmp.0));
-            url
-        };
-        let Some(url) = url else { return };
-        if let Some(app) = crate::APP.get() {
-            use tauri::Emitter;
-            let _ = app.emit_to(
-                "bar",
-                "dock-backdrop",
-                serde_json::json!({
-                    "url": url,
-                    "x": (x0 - mon.left) as f64 / scale,
-                    "y": (y0 - mon.top) as f64 / scale,
-                    "w": w as f64 / scale,
-                    "h": h as f64 / scale,
-                }),
-            );
-        }
-    });
 }
 
 /// Re-checks what's behind the dock and tells the UI when it changes.

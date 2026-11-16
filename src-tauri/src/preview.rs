@@ -48,6 +48,66 @@ struct Shot {
     img: String,
 }
 
+/// Last picture of each window seen in front, so minimized windows still have one.
+static CACHE: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<i64, (String, std::time::Instant)>>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+
+fn remember(raw: i64, img: &str) {
+    let mut c = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    c.insert(raw, (img.to_string(), std::time::Instant::now()));
+    if c.len() > 40 {
+        c.retain(|k, _| unsafe { IsWindow(Some(h(*k))).as_bool() });
+        while c.len() > 40 {
+            let Some(oldest) = c.iter().min_by_key(|(_, v)| v.1).map(|(k, _)| *k) else { break };
+            c.remove(&oldest);
+        }
+    }
+}
+
+/// Keeps a fresh picture of whatever window is in front: a moment after you
+/// switch to it, and every 20 s while it stays there. One small capture at a time.
+pub fn spawn_watcher() {
+    std::thread::Builder::new()
+        .name("ledge-preview-cache".into())
+        .spawn(|| {
+            let me = std::process::id();
+            let mut last: i64 = 0;
+            let mut since = std::time::Instant::now();
+            let mut taken: Option<std::time::Instant> = None;
+            loop {
+                std::thread::sleep(Duration::from_millis(1500));
+                let fg = unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() };
+                if fg.is_invalid() {
+                    continue;
+                }
+                let mut pid = 0u32;
+                unsafe { windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId(fg, Some(&mut pid)) };
+                if pid == me {
+                    continue;
+                }
+                let raw = fg.0 as isize as i64;
+                if raw != last {
+                    last = raw;
+                    since = std::time::Instant::now();
+                    taken = None;
+                    continue;
+                }
+                let due = match taken {
+                    None => since.elapsed() > Duration::from_millis(700),
+                    Some(t) => t.elapsed() > Duration::from_secs(20),
+                };
+                if due {
+                    let s = appbar::geometry().scale;
+                    if let Some(img) = snapshot(fg, (250.0 * s) as i32, (SHOT_H * s) as i32) {
+                        remember(raw, &img);
+                    }
+                    taken = Some(std::time::Instant::now());
+                }
+            }
+        })
+        .expect("spawn preview cache");
+}
+
 static OPEN: AtomicBool = AtomicBool::new(false);
 static HOVER: AtomicBool = AtomicBool::new(false);
 static GEN: AtomicU64 = AtomicU64::new(0);
@@ -158,6 +218,15 @@ pub fn show(app: &AppHandle, windows: Vec<(i64, String)>, anchor_x: f64, icon: O
         let _ = ShowWindow(dest, SW_SHOWNOACTIVATE);
     }
     let _ = w.emit("preview", serde_json::json!({ "cards": cards, "icon": icon }));
+    // Last known pictures first (minimized windows keep theirs), then fresh ones.
+    {
+        let c = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        for card in &cards {
+            if let Some((img, _)) = c.get(&card.hwnd) {
+                let _ = app.emit_to("preview", "preview-shot", Shot { hwnd: card.hwnd, img: img.clone() });
+            }
+        }
+    }
 
     // Pictures, off the UI thread, refreshed while this preview stays open.
     let app = app.clone();
@@ -171,6 +240,7 @@ pub fn show(app: &AppHandle, windows: Vec<(i64, String)>, anchor_x: f64, icon: O
                     return;
                 }
                 if let Some(img) = snapshot(h(raw), max_w, max_h) {
+                    remember(raw, &img);
                     let _ = app.emit_to("preview", "preview-shot", Shot { hwnd: raw, img });
                 }
             }

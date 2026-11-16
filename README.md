@@ -5,9 +5,11 @@ running apps, live widgets, and Ledge's own Control Center, notification center 
 
 ## What's new in 0.6
 
-- **Glass that blends with your apps**: just before the dock slides up, Ledge snapshots the strip of screen it's about to
-  cover and frosts it (Liquid refracts it), so over Spotify or Chrome the dock carries their colours. Corners stay
-  smooth and round.
+- **Natural glass**: a tinted pane with a sheen and a lit rim, smooth round corners; widgets, the Wi-Fi cluster and the
+  clock are glass tiles too.
+- **SongSeam in the music player**: time-synced lyrics (from LRCLIB, like SongSeam; only title, artist and length are
+  sent) and one-tap Glow / Mood DJ / lyrics overlay, which open SongSeam.
+- **Previews show the last picture of minimized windows** (Ledge keeps a small picture of the window in front).
 - **Window previews fixed**: hover an open app to see a picture of each of its windows (refreshed while you look).
 - **Music panel**: blurred artwork, wave seek bar, shuffle and repeat, output devices behind the cast button.
 - Glassier Control Center; sliders and bars follow your accent colour; running apps show a dot instead of a bar; new

@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { Menu } from "@tauri-apps/api/menu";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Apps } from "./components/Apps";
@@ -17,7 +16,6 @@ import {
 } from "./components/DockWidgets";
 import { StartGlyph } from "./components/glyphs";
 import { Sortable } from "./components/Sortable";
-import { bakeLiquid } from "./liquid";
 import {
   call,
   DOCK_LABELS,
@@ -111,103 +109,6 @@ async function widgetMenu(e: React.MouseEvent, id: DockItem, order: DockItem[], 
   await menu.popup();
 }
 
-/** An image placed on the monitor (DIPs): the screen snapshot behind the dock, or the wallpaper. */
-type Backdrop = { url: string; x: number; y: number; w: number; h: number };
-
-/**
- * The dock's glass. Just before the dock slides up, Rust snapshots the strip of
- * screen it's about to cover (an app, or the desktop); this frosts it — or, for
- * Liquid, refracts it — once, so the glass carries the colours of whatever is
- * behind it. Without a snapshot (dock always shown) the wallpaper is used.
- */
-function useGlass(blur: number, style: string) {
-  const [geo, setGeo] = useState<Geometry | null>(null);
-  const [wall, setWall] = useState<{ url: string; w: number; h: number; style: string } | null>(null);
-  const [shot, setShot] = useState<Backdrop | null>(null);
-  const [baked, setBaked] = useState<{ url: string; inset: number } | null>(null);
-  useEffect(() => {
-    invoke<Geometry>("dock_geometry").then(setGeo);
-    const offGeo = listen<Geometry>("dock-geometry", (e) => setGeo(e.payload));
-    const offShot = listen<Backdrop>("dock-backdrop", (e) => setShot(e.payload));
-    let alive = true;
-    let key = "";
-    const load = async () => {
-      const w = await invoke<{ dataUrl: string | null; style: string; key: string }>("wallpaper");
-      if (!alive || w.key === key || !w.dataUrl) return;
-      key = w.key;
-      const img = new Image();
-      img.onload = () => alive && setWall({ url: w.dataUrl!, w: img.naturalWidth, h: img.naturalHeight, style: w.style });
-      img.src = w.dataUrl;
-    };
-    load();
-    const t = setInterval(load, 60_000);
-    return () => {
-      alive = false;
-      clearInterval(t);
-      offGeo.then((f) => f());
-      offShot.then((f) => f());
-    };
-  }, []);
-
-  const W = geo?.monitorWidth ?? 0;
-  const H = geo?.monitorHeight ?? 0;
-  let src: Backdrop | null = shot;
-  if (!src && wall && W && H) {
-    const fit = wall.style === "6" ? Math.min(W / wall.w, H / wall.h) : wall.style === "2" ? null : Math.max(W / wall.w, H / wall.h);
-    const dw = fit == null ? W : wall.w * fit;
-    const dh = fit == null ? H : wall.h * fit;
-    src = { url: wall.url, x: (W - dw) / 2, y: (H - dh) / 2, w: dw, h: dh };
-  }
-  const dock = geo ? { x: geo.x, y: geo.y, w: geo.width, h: geo.height } : null;
-  const liquid = style === "liquid";
-
-  useEffect(() => {
-    if (!src || !dock || !dock.w || !dock.h) return;
-    let cancelled = false;
-    const img = new Image();
-    img.onload = async () => {
-      if (cancelled) return;
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      let blob: Blob | null = null;
-      let inset = 0;
-      if (liquid) {
-        blob = await bakeLiquid((ctx, ox, oy) => ctx.drawImage(img, src.x + ox, src.y + oy, src.w, src.h), dock, { radius: 19, edge: 15, dpr });
-      } else {
-        // Margin beyond the pill so the blur's soft edges never show.
-        inset = Math.ceil(PAD + blur * 1.5);
-        const c = document.createElement("canvas");
-        const k = 0.5; // the frost hides detail: half resolution is plenty
-        c.width = Math.round((dock.w + 2 * inset) * k);
-        c.height = Math.round((dock.h + 2 * inset) * k);
-        const ctx = c.getContext("2d");
-        if (!ctx) return;
-        ctx.scale(k, k);
-        ctx.filter = `blur(${blur}px) saturate(1.45) brightness(0.92)`;
-        ctx.drawImage(img, src.x - (dock.x - inset), src.y - (dock.y - inset), src.w, src.h);
-        blob = await new Promise<Blob | null>((res) => c.toBlob(res));
-      }
-      if (!blob || cancelled) return;
-      setBaked((old) => {
-        if (old) URL.revokeObjectURL(old.url);
-        return { url: URL.createObjectURL(blob!), inset };
-      });
-    };
-    img.src = src.url;
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [src?.url, src?.x, src?.y, dock?.x, dock?.y, dock?.w, dock?.h, blur, liquid]);
-
-  if (!geo || !baked) return undefined;
-  return {
-    backgroundImage: `url("${baked.url}")`,
-    backgroundSize: "100% 100%",
-    inset: `-${baked.inset}px`,
-  } as React.CSSProperties;
-}
-
-const PAD = 24;
 
 /** Optional widgets, in the order they step aside when the screen is too narrow. */
 const DROP_ORDER = ["event", "battery", "system", "phone", "whatsapp", "claude", "media", "portfolio"] as const;
@@ -226,7 +127,6 @@ export default function Dock() {
   const calendar = useChannel<CalendarState>("calendar");
   const phone = useChannel<PhoneState>("phone");
   const style = cfg?.appearance?.style ?? "black";
-  const glass = useGlass(cfg?.appearance?.blur ?? 28, style);
   useAppearance(cfg?.appearance, true);
   const dockRef = useRef<HTMLDivElement>(null);
   const startRef = useRef<HTMLButtonElement>(null);
@@ -342,7 +242,7 @@ export default function Dock() {
 
   return (
     <div className={`dock-shell s-${style}`} onContextMenu={(e) => barMenu(e, cfg, saveCfg)}>
-      <div className="glass">{glass && <div className="glass-img" style={glass} />}</div>
+      <div className="glass" />
       <div className="dock" ref={dockRef}>
         {/* Every item can be dragged to a new place; the order is saved. */}
         <Sortable ids={order} onCommit={(ids) => saveCfg({ ...cfg, dockOrder: ids })} render={render} className="dock-row" />

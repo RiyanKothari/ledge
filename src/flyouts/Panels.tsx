@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { currentLine, useLyrics } from "../lyrics";
 import { Bar, batteryOf, claudeView, connectedPhone, nowPosition, Ring } from "../components/DockWidgets";
 import { ChatTile, ClaudeTile, CodexTile, Cpu, Down, FundTile, Next, Pause, Play, Prev, Search, Speaker, Up } from "../components/glyphs";
 import {
@@ -88,6 +89,55 @@ const Cast = ({ size = 20 }: { size?: number }) => (
   </svg>
 );
 
+const SONGSEAM = "shell:AppsFolder\\app.songseam.desktop";
+
+/** SongSeam, inside the player: synced lyrics here, and its glow and Mood DJ one tap away. */
+function SongSeamLyrics({ m, pos }: { m: NowPlaying; pos: number }) {
+  const { lyrics, loading } = useLyrics(m.title, m.artist, m.durationMs);
+  const lines = lyrics?.lines.filter((l) => l.text) ?? [];
+  const i = lyrics?.synced ? currentLine(lines, pos) : -1;
+  const show = lyrics?.synced ? [i - 1, i, i + 1, i + 2].map((k) => ({ k, line: lines[k] })) : lines.slice(0, 4).map((line, k) => ({ k, line }));
+  return (
+    <div className="ss">
+      <div className="ss-lyrics">
+        {loading ? (
+          <p className="ss-dim">Finding lyrics…</p>
+        ) : !lines.length ? (
+          <p className="ss-dim">No lyrics for this song.</p>
+        ) : (
+          show.map(({ k, line }) =>
+            line ? (
+              <p
+                key={`${k}-${line.t}`}
+                className={`ss-line ${k === i ? "now" : k < i ? "past" : ""}`}
+                onClick={() => lyrics?.synced && m.canSeek && call.media("seek", line.t)}
+              >
+                {line.text}
+              </p>
+            ) : (
+              <p key={`gap-${k}`} className="ss-line gap">
+                &nbsp;
+              </p>
+            ),
+          )
+        )}
+      </div>
+      <div className="ss-bar">
+        <span className="ss-brand">SongSeam</span>
+        <button className="ss-btn" onClick={() => call.launch(SONGSEAM)} title="Album-colour glow around your screen, from the music">
+          Glow
+        </button>
+        <button className="ss-btn" onClick={() => call.launch(SONGSEAM)} title="Mood DJ: plans fades through your liked songs">
+          Mood DJ
+        </button>
+        <button className="ss-btn" onClick={() => call.launch(SONGSEAM)} title="Word-by-word lyrics on your screen">
+          Lyrics overlay
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function MediaPanel() {
   const m = useChannel<NowPlaying>("media");
   const c = useChannel<Controls>("controls");
@@ -166,6 +216,7 @@ export function MediaPanel() {
           {m.repeat && m.repeat !== "none" && <i />}
         </button>
       </div>
+      <SongSeamLyrics m={m} pos={pos} />
       {outputs && (
         <div className="mp2-out">
           <Slider

@@ -485,6 +485,7 @@ pub fn run() {
             portfolio::spawn(h.clone());
             phone::spawn(h.clone());
             tray::spawn(h.clone());
+            preview::spawn_watcher();
             tauri::async_runtime::spawn(claude_web::run(h.clone()));
             tauri::async_runtime::spawn(ai::plan_loop(h.clone()));
             tauri::async_runtime::spawn(weather::run(h.clone()));

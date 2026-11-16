@@ -920,3 +920,64 @@ button, .card, .clock-tile, .app, .tray-icon, .pv-card, .bc-day {
 }
 .app:active::after, .card:active::after, .tray-icon:active::after, .qr-btn:active::after, .mp2-round:active::after { opacity: 1; transition-duration: 0.05s; }
 .qr-btn:active, .mp2-round:active, .tray-icon:active, .bc-add:active { transform: scale(0.82); }
+
+/* run dots: a self-contained row pinned under the icon's centre */
+.rundots { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; width: 100%; margin: 0; justify-self: stretch; align-self: end;
+  display: flex; justify-content: center; align-items: center; gap: 3px; pointer-events: none; }
+.rundots i { display: block; width: 4px; height: 4px; border-radius: 50%; flex: 0 0 auto; background: color-mix(in srgb, var(--accent) 55%, #9a9aa5);
+  transition: background-color 0.2s, transform 0.25s cubic-bezier(.3, 1.6, .5, 1); }
+.app.active .rundots i { background: var(--accent); transform: scale(1.2); box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 75%, transparent); }
+
+/* ===== natural glass (no pictures): a tinted pane with a sheen and a lit rim ===== */
+.glass { background: rgba(var(--tint-rgb), calc(0.5 + var(--tint-a) * 0.4)) !important; }
+.glass-img { display: none; }
+.glass::after {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03) 42%, rgba(255, 255, 255, 0) 70%, rgba(255, 255, 255, 0.04)) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.24) !important;
+}
+.dock-shell.s-liquid .glass { background: rgba(18, 18, 26, 0.46) !important; }
+.dock-shell.s-liquid .glass::after {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.05) 40%, rgba(255, 255, 255, 0) 65%, rgba(255, 255, 255, 0.1)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), inset 0 -1px 0 rgba(255, 255, 255, 0.25), inset 1px 0 0 rgba(255, 255, 255, 0.3), inset -1px 0 0 rgba(255, 255, 255, 0.3) !important;
+}
+html[data-view="bar"][data-tone="light"] .glass { background: rgba(var(--tint-rgb), 0.86) !important; }
+
+/* glass tiles on the dock: widgets, the Wi-Fi/Bluetooth/volume cluster, the clock */
+.card, .clock-tile.flipdock, .apps-group {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.04)) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+html[data-view="bar"][data-tone="light"] .card, html[data-view="bar"][data-tone="light"] .clock-tile.flipdock, html[data-view="bar"][data-tone="light"] .apps-group {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.25)) !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+.fd-card { background: linear-gradient(180deg, rgba(58, 58, 66, 0.85) 50%, rgba(44, 44, 52, 0.85) 50%); }
+
+/* glass panels: Control Center and the clock panel */
+.flyout { background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015) 40%, rgba(0, 0, 0, 0.12)) !important; }
+.k-center .fsec, .k-center .cal, .k-center .center-hero, .ncard {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+}
+.k-center .fsec, .k-center .cal { padding: 12px; }
+.k-center .center-hero { padding: 12px 14px; }
+.ncard { border-radius: 14px; }
+
+/* SongSeam in the player: synced lyrics + shortcuts */
+.ss { margin-top: 14px; padding: 12px 14px 10px; border-radius: 18px; background: rgba(0, 0, 0, 0.22); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1); }
+.ss-lyrics { min-height: 96px; display: flex; flex-direction: column; justify-content: center; gap: 2px; text-align: center; }
+.ss-line { margin: 0; font-size: 13px; font-weight: 600; line-height: 1.45; color: rgba(255, 255, 255, 0.42); cursor: pointer; transition: color 0.35s ease, transform 0.35s cubic-bezier(.3, 1.4, .5, 1), text-shadow 0.35s ease; }
+.ss-line.past { color: rgba(255, 255, 255, 0.28); }
+.ss-line.now { color: #fff; font-size: 15.5px; font-weight: 750; transform: scale(1.02); text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 70%, transparent); }
+.ss-line.gap { cursor: default; }
+.ss-dim { margin: 0; font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+.ss-bar { display: flex; align-items: center; gap: 6px; margin-top: 10px; padding-top: 9px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+.ss-brand { flex: 1; font-size: 11px; font-weight: 750; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--accent) 60%, #fff); }
+.ss-btn { padding: 5px 10px; border-radius: 99px; font-size: 11px; font-weight: 650; background: rgba(255, 255, 255, 0.12); cursor: pointer; transition: background-color 0.15s, transform 0.2s cubic-bezier(.3, 1.6, .5, 1); }
+.ss-btn:hover { background: rgba(255, 255, 255, 0.2); }
+.ss-btn:active { transform: scale(0.9); }
+
+/* previews: "Minimized" as a badge over the last picture */
+.pv-shot .pv-min { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); padding: 2px 8px; border-radius: 99px; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 10.5px; }

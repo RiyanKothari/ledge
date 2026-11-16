@@ -166,7 +166,7 @@ function AppButton({ g, cfg, saveCfg }: { g: Group; cfg: Config; saveCfg: (c: Co
       onContextMenu={onMenu}
     >
       {src ? <img src={src} alt="" draggable={false} /> : <span className="app-fallback">{g.name.charAt(0)}</span>}
-      <span className="indicator">
+      <span className="rundots" aria-hidden>
         {running && <i />}
         {g.windows.length > 1 && <i />}
       </span>
