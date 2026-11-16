@@ -23,6 +23,8 @@ export default function Toast() {
   }, []);
 
   useEffect(() => {
+    // A banner that closed under the pointer never got its mouseleave: start fresh.
+    setHover(false);
     if (!cur) {
       call.toast(false);
       return;

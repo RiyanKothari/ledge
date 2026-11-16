@@ -20,6 +20,7 @@ mod shell;
 mod system;
 mod taskbar;
 mod tray;
+mod voice;
 mod weather;
 mod wifi;
 mod winwatch;
@@ -58,6 +59,9 @@ fn save_config(app: AppHandle, mut cfg: Config) -> Res<Config> {
     }
     cfg.banner_seconds = cfg.banner_seconds.clamp(1, 30);
     config::save(&cfg)?;
+    if old.wake_word != cfg.wake_word {
+        voice::set_wake(&app, cfg.wake_word);
+    }
     if old.dock_autohide != cfg.dock_autohide {
         appbar::set_autohide(cfg.dock_autohide);
     }
@@ -333,6 +337,16 @@ fn dock_covered() -> bool {
 }
 
 #[tauri::command]
+fn voice_hotkey() -> String {
+    appbar::VOICE_KEY.lock().unwrap_or_else(|e| e.into_inner()).to_string()
+}
+
+#[tauri::command]
+fn voice_listen(app: AppHandle) {
+    voice::listen(&app);
+}
+
+#[tauri::command]
 fn dock_peek() {
     appbar::toggle_peek();
 }
@@ -347,6 +361,11 @@ fn taskbar_peek(on: bool) -> bool {
 // Window creation must not happen in a sync command on Windows (deadlock).
 #[tauri::command]
 async fn open_settings(app: AppHandle) -> Res<()> {
+    open_settings_window(&app).await
+}
+
+pub(crate) async fn open_settings_window(app: &AppHandle) -> Res<()> {
+    let app = app.clone();
     if let Some(w) = app.get_webview_window("settings") {
         let _ = w.unminimize();
         let _ = w.show();
@@ -447,6 +466,8 @@ pub fn run() {
             event_add,
             event_remove,
             dock_peek,
+            voice_listen,
+            voice_hotkey,
             dock_covered,
             preview_show,
             preview_hide,
@@ -486,6 +507,14 @@ pub fn run() {
             phone::spawn(h.clone());
             tray::spawn(h.clone());
             preview::spawn_watcher();
+            if config::get().wake_word {
+                // After the app list is warm, so "Hey Ledge, open …" knows your apps.
+                let hw = h.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(8));
+                    voice::set_wake(&hw, true);
+                });
+            }
             tauri::async_runtime::spawn(claude_web::run(h.clone()));
             tauri::async_runtime::spawn(ai::plan_loop(h.clone()));
             tauri::async_runtime::spawn(weather::run(h.clone()));
@@ -495,7 +524,7 @@ pub fn run() {
         .on_window_event(|w, ev| {
             // Alt+F4 on the dock must not leave you without a taskbar.
             match (w.label(), ev) {
-                ("bar" | "flyout" | "toast" | "preview", WindowEvent::CloseRequested { api, .. }) => api.prevent_close(),
+                ("bar" | "flyout" | "toast" | "preview" | "voice", WindowEvent::CloseRequested { api, .. }) => api.prevent_close(),
                 // Panels close when you click anywhere else, like the real ones.
                 ("flyout", WindowEvent::Focused(false)) => {
                     flyout::mark_closed();

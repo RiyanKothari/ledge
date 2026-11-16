@@ -7,7 +7,8 @@
     "settings",
     "flyout",
     "toast",
-    "preview"
+    "preview",
+    "voice"
   ],
   "permissions": [
     "core:default"

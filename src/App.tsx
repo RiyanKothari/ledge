@@ -101,6 +101,8 @@ async function widgetMenu(e: React.MouseEvent, id: DockItem, order: DockItem[], 
     saveCfg({ ...cfg, dockOrder: next });
   };
   const items: NonNullable<MenuItems> = [];
+  const el = e.currentTarget.firstElementChild ?? e.currentTarget;
+  if (id === "whatsapp") items.push({ id: "wa-list", text: "Recent messages", action: () => openFlyout("whatsapp", el, 360, 420) }, { item: "Separator" });
   if (key) items.push({ id: "hide", text: `Hide ${DOCK_LABELS[id]}`, action: () => saveCfg({ ...cfg, widgets: { ...cfg.widgets, [key]: false } }) });
   if (i > 0) items.push({ id: "left", text: "Move left", action: () => move(i - 1) });
   if (i < order.length - 1) items.push({ id: "right", text: "Move right", action: () => move(i + 1) });
@@ -127,6 +129,10 @@ export default function Dock() {
   const calendar = useChannel<CalendarState>("calendar");
   const phone = useChannel<PhoneState>("phone");
   const style = cfg?.appearance?.style ?? "black";
+  const [voiceKey, setVoiceKey] = useState("");
+  useEffect(() => {
+    invoke<string>("voice_hotkey").then(setVoiceKey);
+  }, []);
   useAppearance(cfg?.appearance, true);
   const dockRef = useRef<HTMLDivElement>(null);
   const startRef = useRef<HTMLButtonElement>(null);
@@ -215,6 +221,12 @@ export default function Dock() {
               }}
             >
               <StartGlyph />
+            </button>
+            <button className="mic" title={`Talk to Ledge${voiceKey ? ` (${voiceKey})` : ""} — or just say “Hey Ledge”`} aria-label="Voice command" onClick={() => call.listen()}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <rect x="9" y="3" width="6" height="11" rx="3" />
+                <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />
+              </svg>
             </button>
             <Apps windows={windows} cfg={cfg} saveCfg={saveCfg} />
           </div>

@@ -1894,7 +1894,7 @@ dependencies = [
 
 [[package]]
 name = "ledge"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -1909,6 +1909,7 @@ dependencies = [
  "tokio",
  "webview2-com",
  "windows",
+ "windows-collections",
  "windows-core",
  "zstd",
 ]

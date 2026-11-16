@@ -101,6 +101,8 @@ pub struct Config {
     pub appearance: Appearance,
     /// Background-app (tray) icons, left to right, by executable path.
     pub tray_order: Vec<String>,
+    /// Listen for "Hey Ledge" (keeps the microphone on).
+    pub wake_word: bool,
 }
 
 fn default_portfolio() -> String {
@@ -135,6 +137,7 @@ impl Default for Config {
             claude_web: false,
             appearance: Appearance::default(),
             tray_order: Vec::new(),
+            wake_word: true,
         }
     }
 }

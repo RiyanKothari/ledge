@@ -8,8 +8,6 @@ use crate::appbar;
 use serde::Serialize;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use tauri::utils::config::{Color, WindowEffectsConfig};
-use tauri::window::Effect;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::Graphics::Dwm::{DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND, DwmSetWindowAttribute};
@@ -58,6 +56,46 @@ fn glass(w: &WebviewWindow, no_activate: bool) {
         }
         SetWindowLongPtrW(h, GWL_EXSTYLE, ex | add);
     }
+    see_through(h);
+}
+
+/// Clear, see-through frosted glass: the classic acrylic blur-behind with a
+/// light tint, instead of Windows 11's dense flyout backdrop (which reads as
+/// solid grey). Rounded by DWMWCP_ROUND above.
+fn see_through(h: HWND) {
+    acrylic(h, 0x4C1A1414);
+}
+
+/// SetWindowCompositionAttribute acrylic blur-behind; `color` is 0xAABBGGRR.
+pub fn acrylic(h: HWND, color: u32) {
+    use windows::Win32::Graphics::Dwm::{DWMSBT_NONE, DWMWA_SYSTEMBACKDROP_TYPE};
+    use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
+    use windows::core::{s, w};
+    #[repr(C)]
+    struct Accent {
+        state: u32,
+        flags: u32,
+        color: u32,
+        animation: u32,
+    }
+    #[repr(C)]
+    struct Data {
+        attribute: u32,
+        data: *mut Accent,
+        size: usize,
+    }
+    type SetWca = unsafe extern "system" fn(HWND, *mut Data) -> windows::core::BOOL;
+    unsafe {
+        let none = DWMSBT_NONE;
+        let _ = DwmSetWindowAttribute(h, DWMWA_SYSTEMBACKDROP_TYPE, &none as *const _ as *const _, size_of_val(&none) as u32);
+        let Ok(user32) = GetModuleHandleW(w!("user32.dll")) else { return };
+        let Some(f) = GetProcAddress(user32, s!("SetWindowCompositionAttribute")) else { return };
+        let f: SetWca = std::mem::transmute(f);
+        // ACCENT_ENABLE_ACRYLICBLURBEHIND, tint 0xAABBGGRR: a dark, mostly clear pane.
+        let mut accent = Accent { state: 4, flags: 2, color, animation: 0 };
+        let mut data = Data { attribute: 19, data: &mut accent, size: size_of::<Accent>() };
+        let _ = f(h, &mut data);
+    }
 }
 
 fn builder<'a>(app: &'a AppHandle, label: &'a str, title: &'a str) -> WebviewWindowBuilder<'a, tauri::Wry, AppHandle> {
@@ -72,7 +110,6 @@ fn builder<'a>(app: &'a AppHandle, label: &'a str, title: &'a str) -> WebviewWin
         .visible(false)
         .focused(false)
         .theme(Some(tauri::Theme::Dark))
-        .effects(WindowEffectsConfig { effects: vec![Effect::Acrylic], state: None, radius: None, color: Some(Color(16, 16, 22, 150)), interactive: false })
 }
 
 /// Creates both windows hidden, so opening one later is instant.
@@ -83,6 +120,14 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
     glass(&t, true);
     let p = builder(app, "preview", "Ledge previews").inner_size(400.0, 200.0).build()?;
     glass(&p, true);
+    // The voice pill draws its own glass (a rounded pill), so no window backdrop.
+    let v = builder(app, "voice", "Ledge voice").inner_size(460.0, 320.0).shadow(false).build()?;
+    if let Some(h) = hwnd(&v) {
+        unsafe {
+            let ex = GetWindowLongPtrW(h, GWL_EXSTYLE);
+            SetWindowLongPtrW(h, GWL_EXSTYLE, ex | WS_EX_TOOLWINDOW.0 as isize | WS_EX_NOACTIVATE.0 as isize);
+        }
+    }
     // The flyout stops painting while hidden; the banner and preview pages are
     // static, and toggling their web view's visibility left them blank when
     // they were shown with Win32.

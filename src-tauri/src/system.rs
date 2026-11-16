@@ -162,7 +162,7 @@ fn net_totals() -> (u64, u64, String) {
     }
 }
 
-fn volume() -> Option<Volume> {
+pub fn volume() -> Option<Volume> {
     unsafe {
         let e: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
         let dev = e.GetDefaultAudioEndpoint(eRender, eConsole).ok()?;

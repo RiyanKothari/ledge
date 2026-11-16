@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState } from "react";
 import { call, DOCK_LABELS, dockOrder, useAppearance, useConfig, useIcon, type Appearance, type Config, type DockStyle, type Pin, type Widgets } from "./ipc";
 
@@ -88,6 +89,12 @@ export default function Settings() {
   const [status, setStatus] = useState("");
   const [tab, setTab] = useState<Section>("appearance");
   const lastEdit = useRef(0);
+  // Typing waits for a pause; every switch, slider and swatch applies at once.
+  const typing = useRef(false);
+  const [voiceKey, setVoiceKey] = useState("");
+  useEffect(() => {
+    invoke<string>("voice_hotkey").then(setVoiceKey);
+  }, []);
   useAppearance(draft?.appearance);
 
   // Seed from the stored config; pick up outside changes (e.g. a widget hidden
@@ -108,12 +115,13 @@ export default function Settings() {
       } catch (e) {
         setStatus(`Couldn't save: ${e}`);
       }
-    }, 450);
+    }, typing.current ? 500 : 0);
     return () => clearTimeout(t);
   }, [draft, saved, save]);
 
   if (!draft) return null;
-  const set = <K extends keyof Config>(k: K, v: Config[K]) => {
+  const set = <K extends keyof Config>(k: K, v: Config[K], slow = false) => {
+    typing.current = slow;
     lastEdit.current = Date.now();
     setDraft({ ...draft, [k]: v });
   };
@@ -312,7 +320,7 @@ export default function Settings() {
             <div className="card-group">
               <label className="row">
                 <span>City</span>
-                <input value={draft.city} placeholder="e.g. Mumbai" onChange={(e) => set("city", e.target.value)} />
+                <input value={draft.city} placeholder="e.g. Mumbai" onChange={(e) => set("city", e.target.value, true)} />
               </label>
               <Toggle on={draft.fahrenheit} onChange={(v) => set("fahrenheit", v)} label="Fahrenheit" />
             </div>
@@ -327,13 +335,13 @@ export default function Settings() {
               spellCheck={false}
               value={draft.icsUrls.join("\n")}
               placeholder="https://calendar.google.com/calendar/ical/…/basic.ics"
-              onChange={(e) => set("icsUrls", e.target.value.split("\n"))}
+              onChange={(e) => set("icsUrls", e.target.value.split("\n"), true)}
             />
             <h3>RennSquare</h3>
             <div className="card-group">
               <label className="row">
                 <span>live.json</span>
-                <input value={draft.portfolioPath} spellCheck={false} onChange={(e) => set("portfolioPath", e.target.value)} />
+                <input value={draft.portfolioPath} spellCheck={false} onChange={(e) => set("portfolioPath", e.target.value, true)} />
               </label>
             </div>
           </>
@@ -346,6 +354,19 @@ export default function Settings() {
               <Toggle on={draft.startWithWindows} onChange={(v) => set("startWithWindows", v)} label="Start Ledge when I sign in" hint="This is what makes Ledge your taskbar." />
               <Toggle on={draft.hideNativeTaskbar} onChange={(v) => set("hideNativeTaskbar", v)} label="Hide the Windows taskbar while Ledge runs" />
             </div>
+            <h3>Voice</h3>
+            <div className="card-group">
+              <Toggle
+                on={draft.wakeWord}
+                onChange={(v) => set("wakeWord", v)}
+                label="Listen for “Hey Ledge”"
+                hint="Say “Hey Ledge, open WhatsApp”. Recognised on this PC by Windows; nothing is sent anywhere. Keeps the microphone on while enabled."
+              />
+            </div>
+            <p className="hint">
+              Or press <code>{voiceKey || "the mic on the dock"}</code> (or the mic on the dock) and say a command: “open Chrome”, “pause”, “next song”, “volume 40”,
+              “do not disturb on”, “Wi-Fi off”, “brightness 70”, “show my calendar”, “Claude usage”, “show desktop”.
+            </p>
             <p className="hint">
               Ledge always puts the taskbar back when it quits. If it ever doesn't, run <code>ledge --restore-taskbar</code> or restart Windows Explorer.
             </p>

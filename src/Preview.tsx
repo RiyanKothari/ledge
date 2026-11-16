@@ -43,7 +43,7 @@ export default function Preview() {
         <div
           key={c.hwnd}
           className="pv-card"
-          style={{ left: c.x, top: c.y, width: c.w, height: c.h }}
+          style={{ width: c.w, height: c.h }}
           onClick={() => {
             call.focus(c.hwnd);
             hide();

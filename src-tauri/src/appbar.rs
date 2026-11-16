@@ -38,6 +38,84 @@ pub const SIDE_MARGIN: i32 = 12;
 const CALLBACK: u32 = WM_APP + 0x51;
 
 static BAR: AtomicIsize = AtomicIsize::new(0);
+/// A plain window under the dock that only blurs what's behind it ("frost").
+/// It's a hair smaller than the pill, so its (unavoidably square-ish) region
+/// edge hides under the dock's smooth, anti-aliased rim.
+static FROST: AtomicIsize = AtomicIsize::new(0);
+static FROST_SIZE: std::sync::Mutex<(i32, i32)> = std::sync::Mutex::new((0, 0));
+
+fn frost() -> Option<HWND> {
+    let raw = FROST.load(Ordering::SeqCst);
+    (raw != 0).then(|| HWND(raw as *mut _))
+}
+
+unsafe extern "system" fn frost_proc(h: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> LRESULT {
+    unsafe { windows::Win32::UI::WindowsAndMessaging::DefWindowProcW(h, msg, wp, lp) }
+}
+
+/// Creates the frost window and makes the dock its owned window, so the dock
+/// always stays directly above it.
+fn create_frost(dock: HWND) {
+    use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        CreateWindowExW, GWLP_HWNDPARENT, RegisterClassExW, WNDCLASSEXW, WS_EX_NOACTIVATE, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
+    };
+    unsafe {
+        let Ok(inst) = GetModuleHandleW(None) else { return };
+        let class = w!("LedgeDockFrost");
+        let wc = WNDCLASSEXW {
+            cbSize: size_of::<WNDCLASSEXW>() as u32,
+            lpfnWndProc: Some(frost_proc),
+            hInstance: inst.into(),
+            lpszClassName: class,
+            ..Default::default()
+        };
+        RegisterClassExW(&wc);
+        let Ok(h) = CreateWindowExW(
+            WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_TOPMOST,
+            class,
+            w!(""),
+            WS_POPUP,
+            0,
+            0,
+            10,
+            10,
+            None,
+            None,
+            Some(inst.into()),
+            None,
+        ) else {
+            return;
+        };
+        crate::flyout::acrylic(h, 0x14101010);
+        FROST.store(h.0 as isize, Ordering::SeqCst);
+        SetWindowLongPtrW(dock, GWLP_HWNDPARENT, h.0 as isize);
+    }
+}
+
+fn place_frost(left: i32, top: i32, w: i32, h: i32, scale: f64) {
+    use windows::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
+    let Some(f) = frost() else { return };
+    let inset = (2.0 * scale).round() as i32;
+    let (fw, fh) = (w - 2 * inset, h - 2 * inset);
+    unsafe {
+        let _ = SetWindowPos(f, Some(HWND_TOPMOST), left + inset, top + inset, fw, fh, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        let mut last = FROST_SIZE.lock().unwrap_or_else(|e| e.into_inner());
+        if *last != (fw, fh) {
+            *last = (fw, fh);
+            let d = (2.0 * (19.0 * scale - inset as f64)).round() as i32;
+            let _ = SetWindowRgn(f, Some(CreateRoundRectRgn(0, 0, fw + 1, fh + 1, d, d)), true);
+        }
+    }
+}
+
+fn hide_frost() {
+    if let Some(f) = frost() {
+        unsafe {
+            let _ = ShowWindow(f, SW_HIDE);
+        }
+    }
+}
 static TASKBAR_CREATED: AtomicU32 = AtomicU32::new(0);
 static LAST_RECT: std::sync::Mutex<Option<(i32, i32, i32, i32)>> = std::sync::Mutex::new(None);
 static FULLSCREEN: AtomicBool = AtomicBool::new(false);
@@ -83,6 +161,9 @@ fn set_rendering(on: bool) {
     }
 }
 
+/// The shortcut that starts a voice command ("" when none was free).
+pub static VOICE_KEY: std::sync::Mutex<&'static str> = std::sync::Mutex::new("");
+
 /// Alt+` shows the dock over anything (and hides it again).
 pub fn toggle_peek() {
     if shown() > 0.5 {
@@ -100,13 +181,39 @@ pub fn spawn_hotkey() {
             use windows::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, MOD_NOREPEAT, RegisterHotKey};
             use windows::Win32::UI::WindowsAndMessaging::{GetMessageW, MSG, WM_HOTKEY};
             // VK_OEM_3 is the ` key on US/UK/Indian layouts.
-            if RegisterHotKey(None, 1, MOD_ALT | MOD_NOREPEAT, 0xC0).is_err() {
+            use windows::Win32::UI::Input::KeyboardAndMouse::MOD_CONTROL;
+            let peek = RegisterHotKey(None, 1, MOD_ALT | MOD_NOREPEAT, 0xC0).is_ok();
+            use windows::Win32::UI::Input::KeyboardAndMouse::MOD_SHIFT;
+            // Talk to Ledge. Ctrl+Alt+Space is taken by the Claude app, so take
+            // the first free one of these and remember which.
+            let mut voice = false;
+            for (mods, vk, label) in [
+                (MOD_CONTROL | MOD_ALT, 0x4C_u32, "Ctrl + Alt + L"),
+                (MOD_CONTROL | MOD_SHIFT, 0x20, "Ctrl + Shift + Space"),
+                (MOD_CONTROL | MOD_ALT, 0x20, "Ctrl + Alt + Space"),
+            ] {
+                if RegisterHotKey(None, 2, mods | MOD_NOREPEAT, vk).is_ok() {
+                    *VOICE_KEY.lock().unwrap_or_else(|e| e.into_inner()) = label;
+                    voice = true;
+                    break;
+                }
+            }
+            if let Some(app) = crate::APP.get() {
+                crate::hub::publish(app, "hotkeys", &serde_json::json!({ "peek": peek, "voice": voice }));
+            }
+            if !peek && !voice {
                 return;
             }
             let mut msg = MSG::default();
             while GetMessageW(&mut msg, None, 0, 0).as_bool() {
                 if msg.message == WM_HOTKEY {
-                    toggle_peek();
+                    if msg.wParam.0 == 2 {
+                        if let Some(app) = crate::APP.get() {
+                            crate::voice::listen(app);
+                        }
+                    } else {
+                        toggle_peek();
+                    }
                 }
             }
         })
@@ -433,6 +540,7 @@ fn place(hwnd: HWND) {
         *d = rect;
         c
     };
+    place_frost(left, top, w, h, scale);
     unsafe {
         let _ = SetWindowPos(hwnd, Some(HWND_TOPMOST), left, top, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
     }
@@ -471,6 +579,7 @@ pub fn install(hwnd: HWND) {
         TASKBAR_CREATED.store(RegisterWindowMessageW(w!("TaskbarCreated")), Ordering::SeqCst);
         let _ = SetWindowSubclass(hwnd, Some(subclass), 1, 0);
     }
+    create_frost(hwnd);
     register(hwnd);
     position(hwnd, true);
 }
@@ -604,6 +713,7 @@ unsafe extern "system" fn subclass(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM,
                             // foreground window (maximized Chrome triggers this too).
                         } else if fs {
                             let _ = ShowWindow(hwnd, SW_HIDE);
+                            hide_frost();
                         } else {
                             let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
                             position(hwnd, true);

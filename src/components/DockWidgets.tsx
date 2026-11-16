@@ -247,7 +247,9 @@ export function WhatsAppCard({ n }: { n: NotifCenter | null }) {
   if (!n?.available) return null;
   const w = n.whatsapp;
   return (
-    <button ref={ref} className={`card wa ${bump ? "bump" : ""}`} onClick={() => openFlyout("whatsapp", ref.current, 360, 420)} title="WhatsApp">
+    <button ref={ref} className={`card wa ${bump ? "bump" : ""}`} onClick={() => call.openNotif(n?.whatsapp.open || "5319275A.WhatsAppDesktop_cv1g1gvanyjgm!App", true)}
+      title="Open WhatsApp (right-click for recent messages)"
+    >
       <ChatTile />
       <div className="stat">
         <span className="big">{count}</span>

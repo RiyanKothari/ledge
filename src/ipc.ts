@@ -52,6 +52,7 @@ export type Config = {
   claudeWeb: boolean;
   appearance: Appearance;
   trayOrder: string[];
+  wakeWord: boolean;
 };
 
 export type DockStyle = "black" | "white" | "liquid" | "ios" | "midnight" | "custom";
@@ -421,6 +422,7 @@ export const call = {
   eventAdd: (event: LocalEvent) => invoke("event_add", { event }),
   eventRemove: (id: string) => invoke("event_remove", { id }),
   dockPeek: () => invoke("dock_peek"),
+  listen: () => invoke("voice_listen"),
   shell: (action: "start" | "search" | "quickSettings" | "notifications" | "desktop" | "taskManager") =>
     invoke("shell_action", { action }),
   openSettings: () => invoke("open_settings"),

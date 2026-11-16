@@ -981,3 +981,90 @@ html[data-view="bar"][data-tone="light"] .card, html[data-view="bar"][data-tone=
 
 /* previews: "Minimized" as a badge over the last picture */
 .pv-shot .pv-min { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); padding: 2px 8px; border-radius: 99px; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 10.5px; }
+
+/* previews: cards laid out and centred by the page itself */
+.preview { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; box-sizing: border-box; background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(10, 10, 16, 0.3)); }
+.pv-card { position: relative; left: auto; top: auto; flex: 0 0 auto; display: flex; flex-direction: column; background: rgba(255, 255, 255, 0.05); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
+.pv-shot { position: relative; left: auto; right: auto; top: auto; bottom: auto; flex: 1; margin: 0 8px 8px; }
+
+/* panels: see-through glass needs brighter secondary text and a touch of tint */
+html[data-view="flyout"], html[data-view="toast"], html[data-view="preview"] { --muted: #d2d2dc; --dim: #b0b0bc; }
+.flyout { background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02) 35%, rgba(8, 8, 14, 0.3)) !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+.k-control .qtoggles, .k-control .cc-sliders, .k-control .cc-foot, .k-control .list, .k-control .sub-head {
+  background: rgba(255, 255, 255, 0.08) !important; border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 8px 24px rgba(0, 0, 0, 0.18) !important; border-radius: 20px;
+}
+.k-control .sub-head { padding: 8px 10px; }
+.qp-text small, .qr span, .slider-head, .row-text small, .row-text em, .hero-date, .agenda-time, .ncard-meta, .fsec-head, .cal-dow { color: var(--muted) !important; }
+.cal-day.out { color: var(--dim) !important; }
+
+/* voice: the mic on the dock and the listening pill */
+.mic { width: 34px; height: 42px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 11px; color: var(--muted); cursor: pointer;
+  transition: transform 0.35s cubic-bezier(.25, 1.9, .45, 1), color 0.15s, background-color 0.15s; }
+.mic:hover { color: var(--text); background: var(--card-hi); }
+.mic:active { transform: scale(0.82); transition-duration: 0.07s; }
+html[data-view="voice"], html[data-view="voice"] body { background: transparent; overflow: hidden; }
+.voice { height: 100vh; display: flex; align-items: center; gap: 12px; padding: 0 20px 0 12px; border-radius: 38px; color: #fff;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04) 50%), rgba(18, 18, 26, 0.86);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  animation: vpop 0.4s cubic-bezier(.25, 1.6, .45, 1); }
+@keyframes vpop { from { transform: scale(0.85) translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+.voice-orb { width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--accent) 60%, #fff), var(--accent) 60%, color-mix(in srgb, var(--accent) 60%, #000));
+  box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 55%, transparent); }
+.voice.listening .voice-orb { animation: vbreathe 1.4s ease-in-out infinite; }
+@keyframes vbreathe { 50% { transform: scale(1.08); box-shadow: 0 0 34px color-mix(in srgb, var(--accent) 75%, transparent); } }
+.voice.unknown .voice-orb, .voice.error .voice-orb { background: radial-gradient(circle at 35% 30%, #ffb27a, #e8774a 60%, #a8481f); box-shadow: 0 0 18px rgba(232, 119, 74, 0.5); }
+.voice-wave { display: flex; align-items: center; gap: 3px; height: 22px; }
+.voice-wave i { width: 3px; height: 8px; border-radius: 2px; background: #fff; animation: vwave 0.9s ease-in-out infinite; }
+.voice-wave i:nth-child(2) { animation-delay: 0.12s; }
+.voice-wave i:nth-child(3) { animation-delay: 0.24s; }
+.voice-wave i:nth-child(4) { animation-delay: 0.36s; }
+.voice-wave i:nth-child(5) { animation-delay: 0.48s; }
+@keyframes vwave { 50% { height: 22px; } }
+.voice-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.voice-text small { font-size: 11.5px; color: rgba(255, 255, 255, 0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.voice-text b { font-size: 14.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Liquid: clear enough to feel like glass, thick enough to read over any app */
+.dock-shell.s-liquid .glass { background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)), rgba(16, 16, 24, 0.74) !important; }
+
+/* ===== voice: a glowing orb of swirling light ===== */
+.vstage { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 10px; padding-bottom: 14px; animation: vin 0.45s cubic-bezier(.25, 1.5, .45, 1); }
+@keyframes vin { from { opacity: 0; transform: translateY(16px) scale(0.85); } to { opacity: 1; transform: none; } }
+.vorb { position: relative; width: 132px; height: 132px; flex: 0 0 auto; }
+.vcore { position: absolute; inset: 22%; border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, rgba(8, 6, 24, 0.95) 38%, rgba(60, 70, 255, 0.55) 62%, rgba(140, 80, 255, 0) 72%);
+  box-shadow: 0 0 36px 8px rgba(70, 80, 255, 0.55), 0 0 70px 18px rgba(150, 70, 255, 0.28); animation: vcore 2.4s ease-in-out infinite; }
+@keyframes vcore { 50% { transform: scale(1.06); box-shadow: 0 0 44px 12px rgba(80, 90, 255, 0.65), 0 0 84px 24px rgba(170, 80, 255, 0.34); } }
+.vring { position: absolute; inset: 14%; border-radius: 50%; border: 2.5px solid transparent; mix-blend-mode: screen; filter: blur(0.6px); }
+.vring.r1 { border-top-color: #6c7bff; border-left-color: #9b6bff; box-shadow: 0 0 14px rgba(108, 123, 255, 0.9), inset 0 0 10px rgba(108, 123, 255, 0.5); animation: vspin1 2.6s linear infinite; }
+.vring.r2 { inset: 18%; border-bottom-color: #c86bff; border-right-color: #ff8ad8; box-shadow: 0 0 14px rgba(200, 107, 255, 0.85); animation: vspin2 3.4s linear infinite; }
+.vring.r3 { inset: 10%; border-top-color: #4f9bff; border-right-color: #7c5cff; box-shadow: 0 0 18px rgba(79, 155, 255, 0.7); animation: vspin3 4.2s linear infinite; }
+.vring.r4 { inset: 20%; border-left-color: #ffb27a; border-bottom-color: #ff8ad8; opacity: 0.75; box-shadow: 0 0 12px rgba(255, 150, 200, 0.6); animation: vspin4 3s linear infinite reverse; }
+@keyframes vspin1 { to { transform: rotate(360deg) scaleX(1.08) scaleY(0.82); } from { transform: rotate(0deg) scaleX(1.08) scaleY(0.82); } }
+@keyframes vspin2 { from { transform: rotate(40deg) scaleX(0.84) scaleY(1.1); } to { transform: rotate(400deg) scaleX(0.84) scaleY(1.1); } }
+@keyframes vspin3 { from { transform: rotate(120deg) scaleX(1.12) scaleY(0.9); } to { transform: rotate(-240deg) scaleX(1.12) scaleY(0.9); } }
+@keyframes vspin4 { from { transform: rotate(200deg) scaleX(0.92) scaleY(1.04); } to { transform: rotate(560deg) scaleX(0.92) scaleY(1.04); } }
+.vspark { position: absolute; width: 2.5px; height: 2.5px; border-radius: 50%; background: #ffd58a; box-shadow: 0 0 5px #ffb04a; animation: vtw 1.8s ease-in-out infinite; }
+@keyframes vtw { 0%, 100% { opacity: 0.15; transform: scale(0.6); } 50% { opacity: 1; transform: scale(1.3); } }
+.vstage.listening .vring { animation-duration: 1.5s; }
+.vstage.listening .vring.r2 { animation-duration: 2s; }
+.vstage.listening .vring.r3 { animation-duration: 2.6s; }
+.vstage.done .vcore { box-shadow: 0 0 40px 10px rgba(80, 200, 160, 0.5), 0 0 80px 20px rgba(120, 90, 255, 0.3); }
+.vstage.unknown .vring, .vstage.error .vring { filter: blur(0.6px) hue-rotate(150deg) saturate(1.2); }
+.vcaption { max-width: 400px; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 16px; border-radius: 99px; color: #fff; text-align: center;
+  background: rgba(14, 12, 28, 0.78); box-shadow: inset 0 0 0 1px rgba(150, 140, 255, 0.25), 0 6px 24px rgba(40, 30, 120, 0.4); animation: vin 0.35s ease; }
+.vcaption small { font-size: 11px; color: rgba(220, 215, 255, 0.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 360px; }
+.vcaption span { font-size: 14px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 360px; }
+
+/* with real blur behind the dock, the tint can be lighter and still readable */
+.glass { background: rgba(var(--tint-rgb), calc(0.32 + var(--tint-a) * 0.42)) !important; }
+.dock-shell.s-liquid .glass { background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)), rgba(16, 16, 24, 0.48) !important; }
+
+/* the orb's glow fades out well inside its window (no visible edge on light pages) */
+.vstage { padding-bottom: 16px; }
+.vcore { box-shadow: 0 0 26px 4px rgba(70, 80, 255, 0.5), 0 0 46px 10px rgba(150, 70, 255, 0.22) !important; }
+@keyframes vcore { 50% { transform: scale(1.06); box-shadow: 0 0 30px 6px rgba(80, 90, 255, 0.58), 0 0 54px 12px rgba(170, 80, 255, 0.26); } }
+.vring.r1 { box-shadow: 0 0 10px rgba(108, 123, 255, 0.85), inset 0 0 8px rgba(108, 123, 255, 0.45); }
+.vring.r3 { box-shadow: 0 0 12px rgba(79, 155, 255, 0.65); }
