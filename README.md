@@ -8,7 +8,7 @@ window previews, a calendar, and voice commands ("Hey Ledge, open WhatsApp").
 
 **You need:** Windows 11, 64-bit.
 
-1. **Download** `Ledge_0.9.3_x64-setup.exe` from the [latest release](https://github.com/RiyanKothari/ledge/releases/latest)
+1. **Download** `Ledge_0.9.4_x64-setup.exe` from the [latest release](https://github.com/RiyanKothari/ledge/releases/latest)
    (under *Assets*).
 2. **Run it.** The installer isn't code-signed yet, so Windows may show *"Windows protected your PC"* — click
    **More info → Run anyway**. It installs just for you (no admin needed) in a few seconds.

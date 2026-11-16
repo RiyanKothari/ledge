@@ -77,7 +77,7 @@ export function frostColor(a: Appearance | undefined): number {
   const m = /^#?([0-9a-f]{6})$/i.exec(a?.tint ?? "");
   const n = m ? parseInt(m[1], 16) : 0x18181c;
   // Faint: the blur should carry the background's own colours (classic glassmorphism).
-  const alpha = Math.round(6 + Math.min(1, Math.max(0, a?.opacity ?? 0.4)) * 40);
+  const alpha = Math.round(4 + Math.min(1, Math.max(0, a?.opacity ?? 0.4)) * 26);
   const r = n >> 16;
   const g = (n >> 8) & 255;
   const b = n & 255;

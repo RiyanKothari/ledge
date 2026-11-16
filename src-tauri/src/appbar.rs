@@ -104,24 +104,28 @@ fn create_frost(dock: HWND) {
             return;
         };
         crate::flyout::blur_behind(h, FROST_STATE.load(Ordering::SeqCst), FROST_COLOR.load(Ordering::SeqCst));
+        // Windows ignores window regions for this blur (it stayed a square), but it
+        // does honour its own rounded corners — which also add a soft floating shadow.
+        {
+            use windows::Win32::Graphics::Dwm::{DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND, DwmSetWindowAttribute};
+            let pref = DWMWCP_ROUND;
+            let _ = DwmSetWindowAttribute(h, DWMWA_WINDOW_CORNER_PREFERENCE, &pref as *const _ as *const _, size_of_val(&pref) as u32);
+        }
         FROST.store(h.0 as isize, Ordering::SeqCst);
         SetWindowLongPtrW(dock, GWLP_HWNDPARENT, h.0 as isize);
     }
 }
 
+/// The dock's corners are 14 DIPs in CSS. Windows' rounded blur
+/// corner is 8 DIPs; inset 3 DIPs, it nests inside a 14 DIP corner exactly.
+
 fn place_frost(left: i32, top: i32, w: i32, h: i32, scale: f64) {
-    use windows::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
     let Some(f) = frost() else { return };
-    let inset = (2.0 * scale).round() as i32;
+    let inset = (3.0 * scale).round() as i32;
     let (fw, fh) = (w - 2 * inset, h - 2 * inset);
+    *FROST_SIZE.lock().unwrap_or_else(|e| e.into_inner()) = (fw, fh);
     unsafe {
         let _ = SetWindowPos(f, Some(HWND_TOPMOST), left + inset, top + inset, fw, fh, SWP_NOACTIVATE | SWP_SHOWWINDOW);
-        let mut last = FROST_SIZE.lock().unwrap_or_else(|e| e.into_inner());
-        if *last != (fw, fh) {
-            *last = (fw, fh);
-            let d = (2.0 * (19.0 * scale - inset as f64)).round() as i32;
-            let _ = SetWindowRgn(f, Some(CreateRoundRectRgn(0, 0, fw + 1, fh + 1, d, d)), true);
-        }
     }
 }
 

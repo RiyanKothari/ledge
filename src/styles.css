@@ -1322,3 +1322,17 @@ html[data-view="bar"][data-tone="light"][data-style] .apps-group { background: r
 html[data-view="bar"][data-tiles="flat"][data-style] .card,
 html[data-view="bar"][data-tiles="flat"][data-style] .clock-tile.flipdock,
 html[data-view="bar"][data-tiles="flat"][data-style] .apps-group { background: transparent !important; box-shadow: none !important; }
+
+
+/* Corners match the blur behind the dock exactly (appbar::DOCK_RADIUS = 14). And a
+   thinner veil, so the colours behind come through. */
+.dock-shell { border-radius: 14px !important; }
+.dock-shell .glass, .dock-shell.s-black .glass, .dock-shell.s-custom .glass, .dock-shell.s-liquid .glass { background: rgba(255, 255, 255, 0.04) !important; }
+.dock-shell.s-ios .glass { background: rgba(225, 235, 255, 0.07) !important; }
+.dock-shell.s-midnight .glass { background: rgba(80, 90, 200, 0.09) !important; }
+html[data-view="bar"][data-style] .card,
+html[data-view="bar"][data-style] .clock-tile.flipdock,
+html[data-view="bar"][data-style] .apps-group { background: rgba(255, 255, 255, 0.07) !important; border-radius: 11px; }
+html[data-view="bar"][data-tiles="flat"][data-style] .card,
+html[data-view="bar"][data-tiles="flat"][data-style] .clock-tile.flipdock,
+html[data-view="bar"][data-tiles="flat"][data-style] .apps-group { background: transparent !important; box-shadow: none !important; }
