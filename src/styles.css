@@ -1336,3 +1336,22 @@ html[data-view="bar"][data-style] .apps-group { background: rgba(255, 255, 255, 
 html[data-view="bar"][data-tiles="flat"][data-style] .card,
 html[data-view="bar"][data-tiles="flat"][data-style] .clock-tile.flipdock,
 html[data-view="bar"][data-tiles="flat"][data-style] .apps-group { background: transparent !important; box-shadow: none !important; }
+
+
+/* Fully round pill: circular ends (radius = half the dock's height). The blur sits 6 DIP
+   inside (appbar::place_frost); a tinted rim covers that band so the edge reads as thick glass. */
+.dock-shell { border-radius: 999px !important; }
+.dock-shell .glass::after, .dock-shell.s-black .glass::after, .dock-shell.s-custom .glass::after,
+.dock-shell.s-liquid .glass::after, .dock-shell.s-ios .glass::after {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32), inset 0 0 0 6px rgba(var(--tint-rgb), 0.3), inset 0 0 0 7px rgba(255, 255, 255, 0.06) !important;
+}
+.dock-shell.s-midnight .glass::after {
+  box-shadow: inset 0 0 0 1px rgba(175, 185, 255, 0.36), inset 0 0 0 6px rgba(40, 46, 120, 0.32), inset 0 0 0 7px rgba(175, 185, 255, 0.07) !important;
+}
+html[data-view="bar"][data-tone="light"] .dock-shell .glass::after { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7), inset 0 0 0 6px rgba(255, 255, 255, 0.45) !important; }
+/* capsules inside the pill */
+html[data-view="bar"][data-style] .card,
+html[data-view="bar"][data-style] .clock-tile.flipdock,
+html[data-view="bar"][data-style] .apps-group { border-radius: 22px !important; }
+.dock-row > :first-child .card, .dock-row > :last-child .clock-tile { border-radius: 22px !important; }
+.dock { padding-left: 6px !important; padding-right: 6px !important; }

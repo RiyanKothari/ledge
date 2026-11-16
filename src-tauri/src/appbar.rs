@@ -116,12 +116,13 @@ fn create_frost(dock: HWND) {
     }
 }
 
-/// The dock's corners are 14 DIPs in CSS. Windows' rounded blur
-/// corner is 8 DIPs; inset 3 DIPs, it nests inside a 14 DIP corner exactly.
+/// The dock is a full pill (corner radius = half its height, 27 DIPs). Windows'
+/// rounded blur corner is only 8 DIPs; inset 6 DIPs it nests inside the pill's
+/// round ends, and CSS draws a glass rim over the thin band left at the edge.
 
 fn place_frost(left: i32, top: i32, w: i32, h: i32, scale: f64) {
     let Some(f) = frost() else { return };
-    let inset = (3.0 * scale).round() as i32;
+    let inset = (6.0 * scale).round() as i32;
     let (fw, fh) = (w - 2 * inset, h - 2 * inset);
     *FROST_SIZE.lock().unwrap_or_else(|e| e.into_inner()) = (fw, fh);
     unsafe {
