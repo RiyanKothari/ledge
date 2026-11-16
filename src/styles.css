@@ -1145,3 +1145,87 @@ html[data-view="welcome"], html[data-view="welcome"] body { background: #0d0d12;
 .dock-shell .dock { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
 html[data-view="bar"][data-tone="light"] .dock-shell .glass { background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.28)), rgba(var(--tint-rgb), 0.35) !important; }
 html[data-view="bar"][data-tone="light"] .dock-shell .dock { text-shadow: none; }
+
+/* ===== v0.9: light glass — the frost behind (tinted by the style) does the work;
+   on top only a sheen and a lit rim, never a dark layer ===== */
+.dock-shell .glass, .dock-shell.s-liquid .glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.04) 42%, rgba(255, 255, 255, 0.07)) !important;
+}
+.dock-shell .glass::after, .dock-shell.s-liquid .glass::after {
+  background: none !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.34) !important;
+}
+.dock-shell .dock { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
+html[data-view="bar"] .card, html[data-view="bar"] .clock-tile.flipdock, html[data-view="bar"] .apps-group {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05)) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* iOS: bright frosted pane, crisp white rim, soft bevel — like an iPhone dock */
+.dock-shell.s-ios .glass { background: linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.08) 48%, rgba(255, 255, 255, 0.12)) !important; }
+.dock-shell.s-ios .glass::after { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32), inset 0 1.5px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(0, 0, 0, 0.12) !important; }
+html[data-style="ios"][data-view="bar"] .card, html[data-style="ios"][data-view="bar"] .clock-tile.flipdock, html[data-style="ios"][data-view="bar"] .apps-group {
+  background: rgba(255, 255, 255, 0.16) !important; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3); border-radius: 16px;
+}
+html[data-style="ios"] .app img { filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.28)); }
+
+/* Midnight: deep navy glass with a faint starfield and a blue-violet rim glow */
+.dock-shell.s-midnight .glass {
+  background:
+    radial-gradient(1.4px 1.4px at 8% 30%, rgba(255, 255, 255, 0.9), transparent 60%),
+    radial-gradient(1px 1px at 23% 72%, rgba(200, 210, 255, 0.8), transparent 60%),
+    radial-gradient(1.2px 1.2px at 41% 18%, rgba(255, 255, 255, 0.7), transparent 60%),
+    radial-gradient(1px 1px at 63% 64%, rgba(210, 200, 255, 0.8), transparent 60%),
+    radial-gradient(1.4px 1.4px at 79% 26%, rgba(255, 255, 255, 0.85), transparent 60%),
+    radial-gradient(1px 1px at 93% 70%, rgba(190, 210, 255, 0.8), transparent 60%),
+    linear-gradient(160deg, rgba(60, 70, 180, 0.22), rgba(10, 12, 40, 0.1) 55%, rgba(90, 40, 160, 0.2)) !important;
+}
+.dock-shell.s-midnight .glass::after {
+  box-shadow: inset 0 0 0 1px rgba(140, 150, 255, 0.35), inset 0 1px 0 rgba(200, 205, 255, 0.35), 0 0 22px rgba(90, 100, 255, 0.25) !important;
+}
+html[data-style="midnight"][data-view="bar"] .card, html[data-style="midnight"][data-view="bar"] .clock-tile.flipdock, html[data-style="midnight"][data-view="bar"] .apps-group {
+  background: linear-gradient(180deg, rgba(120, 130, 255, 0.16), rgba(60, 50, 160, 0.08)) !important;
+  box-shadow: inset 0 0 0 1px rgba(150, 160, 255, 0.2), inset 0 1px 0 rgba(200, 205, 255, 0.18);
+}
+
+/* flat tiles */
+html[data-tiles="flat"][data-view="bar"] .card, html[data-tiles="flat"][data-view="bar"] .clock-tile.flipdock, html[data-tiles="flat"][data-view="bar"] .apps-group {
+  background: transparent !important; box-shadow: none !important;
+}
+
+/* icon size */
+html[data-icons="s"] .app img { width: 22px; height: 22px; }
+html[data-icons="l"] .app img { width: 34px; height: 34px; }
+html[data-icons="l"] .app, html[data-icons="l"] .start { width: 46px; }
+
+/* no hover zoom */
+html[data-zoom="off"] .app:hover img, html[data-zoom="off"] .start:hover .start-mark { transform: none !important; }
+
+/* reduced motion */
+html[data-motion="reduced"] *, html[data-motion="reduced"] *::before, html[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important;
+}
+
+/* simple clock */
+.fd.simple { gap: 0; }
+.fd.simple .fd-card { background: none !important; box-shadow: none !important; width: auto; padding: 0 1px; }
+.fd.simple .fd-card::after { display: none; }
+.fd.simple .fd-card + .fd-card::before { content: ":"; font-size: 17px; font-weight: 700; opacity: 0.8; margin-right: 1px; }
+.fd.simple .fd-num { animation: none; }
+.fd.simple .fd-card { display: flex; align-items: center; }
+
+/* settings: segmented control + save bar */
+.settings2 .seg { display: inline-flex; padding: 3px; border-radius: 10px; background: rgba(0, 0, 0, 0.3); gap: 2px; }
+.settings2 .seg button { padding: 5px 12px; border-radius: 8px; color: var(--muted); font-weight: 600; font-size: 12px; cursor: pointer; transition: background-color 0.15s, color 0.15s; }
+.settings2 .seg button:hover { color: var(--text); }
+.settings2 .seg button.on { background: var(--accent); color: #fff; }
+.settings2 { position: relative; }
+.s-savebar { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 140%); display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 18px;
+  border-radius: 16px; background: rgba(30, 30, 38, 0.96); box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transition: transform 0.35s cubic-bezier(.25, 1.4, .45, 1); z-index: 10; max-width: calc(100% - 40px); }
+.s-savebar.show { transform: translate(-50%, 0); }
+.s-savebar span { font-size: 12.5px; color: var(--muted); margin-right: 6px; }
+.s-savebar .ghost { padding: 7px 14px; border-radius: 10px; color: var(--muted); cursor: pointer; }
+.s-savebar .ghost:hover { background: var(--card-hi); color: var(--text); }
+.s-savebar .primary { padding: 8px 16px; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 700; cursor: pointer; }
+.s-main { padding-bottom: 90px !important; }

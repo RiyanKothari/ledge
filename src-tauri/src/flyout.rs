@@ -225,7 +225,12 @@ pub fn toast(app: &AppHandle, show: bool, height: Option<f64>) -> tauri::Result<
     let m = (14.0 * s) as i32;
     if let Some(h) = hwnd(&w) {
         unsafe {
-            let _ = SetWindowPos(h, Some(HWND_TOPMOST), g.mon_right - m - pw, g.mon_top + m, pw, ph, SWP_NOACTIVATE);
+            let x = match crate::config::get().banner_position.as_str() {
+                "left" => g.mon_left + m,
+                "center" => (g.mon_left + g.mon_right - pw) / 2,
+                _ => g.mon_right - m - pw,
+            };
+            let _ = SetWindowPos(h, Some(HWND_TOPMOST), x, g.mon_top + m, pw, ph, SWP_NOACTIVATE);
             let _ = ShowWindow(h, SW_SHOWNOACTIVATE);
         }
     }

@@ -54,10 +54,34 @@ export type Config = {
   trayOrder: string[];
   wakeWord: boolean;
   onboarded: boolean;
+  bannerPosition: "left" | "center" | "right";
 };
 
 export type DockStyle = "black" | "white" | "liquid" | "ios" | "midnight" | "custom";
-export type Appearance = { style: DockStyle; opacity: number; tint: string; blur: number; accent: string };
+export type Appearance = {
+  style: DockStyle;
+  opacity: number;
+  tint: string;
+  blur: number;
+  accent: string;
+  iconSize: "s" | "m" | "l";
+  hoverZoom: boolean;
+  clockStyle: "flip" | "simple";
+  accentFromMusic: boolean;
+  tiles: "glass" | "flat";
+  motion: "full" | "reduced";
+};
+
+/** The frost's tint for Windows (0xAABBGGRR): the style's colour, light enough to stay glass. */
+export function frostColor(a: Appearance | undefined): number {
+  const m = /^#?([0-9a-f]{6})$/i.exec(a?.tint ?? "");
+  const n = m ? parseInt(m[1], 16) : 0x18181c;
+  const alpha = Math.round(8 + Math.min(1, Math.max(0, a?.opacity ?? 0.4)) * 96);
+  const r = n >> 16;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return ((alpha << 24) | (b << 16) | (g << 8) | r) >>> 0;
+}
 
 export type TrayIcon = { id: string; tip: string; icon: string; exe: string; closable: boolean };
 
@@ -283,9 +307,11 @@ export function useConfig(): [Config | null, (c: Config) => Promise<void>] {
     let alive = true;
     invoke<Config>("get_config").then((c) => alive && setCfg(c));
     const off = listen<Config>("config", (e) => alive && setCfg(e.payload));
+    const offPreview = listen<Config>("config-preview", (e) => alive && setCfg(e.payload));
     return () => {
       alive = false;
       off.then((f) => f());
+      offPreview.then((f) => f());
     };
   }, []);
   const save = async (c: Config) => {
@@ -295,7 +321,15 @@ export function useConfig(): [Config | null, (c: Config) => Promise<void>] {
 }
 
 /** Applies the dock look (Settings → Appearance) as CSS variables. */
-export function useAppearance(a: Appearance | undefined, tone = false) {
+export function useAppearance(a: Appearance | undefined, tone = false, musicAccent?: string | null) {
+  useEffect(() => {
+    const d = document.documentElement.dataset;
+    d.icons = a?.iconSize ?? "m";
+    d.zoom = a?.hoverZoom === false ? "off" : "on";
+    d.tiles = a?.tiles ?? "glass";
+    d.motion = a?.motion ?? "full";
+    d.style = a?.style ?? "black";
+  }, [a?.iconSize, a?.hoverZoom, a?.tiles, a?.motion, a?.style]);
   useEffect(() => {
     const r = document.documentElement.style;
     const m = /^#?([0-9a-f]{6})$/i.exec(a?.tint ?? "");
@@ -308,9 +342,10 @@ export function useAppearance(a: Appearance | undefined, tone = false) {
     }
     r.setProperty("--tint-rgb", `${n >> 16}, ${(n >> 8) & 255}, ${n & 255}`);
     r.setProperty("--tint-a", String(Math.min(1, Math.max(0, a?.opacity ?? 0.55))));
-    if (a?.accent) r.setProperty("--accent", a.accent);
+    const accent = a?.accentFromMusic && musicAccent ? musicAccent : a?.accent;
+    if (accent) r.setProperty("--accent", accent);
     else r.removeProperty("--accent");
-  }, [a?.tint, a?.opacity, a?.accent, a?.style, tone]);
+  }, [a?.tint, a?.opacity, a?.accent, a?.style, a?.accentFromMusic, musicAccent, tone]);
 }
 
 /** Re-renders every `ms`, aligned to the wall clock. */

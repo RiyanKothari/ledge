@@ -347,6 +347,11 @@ fn voice_listen(app: AppHandle) {
 }
 
 #[tauri::command]
+fn dock_frost(color: u32) {
+    appbar::set_frost_color(color);
+}
+
+#[tauri::command]
 fn dock_peek() {
     appbar::toggle_peek();
 }
@@ -489,6 +494,7 @@ pub fn run() {
             event_add,
             event_remove,
             dock_peek,
+            dock_frost,
             voice_listen,
             voice_hotkey,
             open_welcome,
@@ -553,6 +559,10 @@ pub fn run() {
             match (w.label(), ev) {
                 ("bar" | "flyout" | "toast" | "preview" | "voice", WindowEvent::CloseRequested { api, .. }) => api.prevent_close(),
                 // Panels close when you click anywhere else, like the real ones.
+                // Settings closed: anything previewed but not saved goes back to the saved look.
+                ("settings", WindowEvent::Destroyed) => {
+                    let _ = w.app_handle().emit("config", config::get());
+                }
                 ("flyout", WindowEvent::Focused(false)) => {
                     flyout::mark_closed();
                     let _ = w.hide();

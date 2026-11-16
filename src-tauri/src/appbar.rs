@@ -43,6 +43,18 @@ static BAR: AtomicIsize = AtomicIsize::new(0);
 /// edge hides under the dock's smooth, anti-aliased rim.
 static FROST: AtomicIsize = AtomicIsize::new(0);
 static FROST_SIZE: std::sync::Mutex<(i32, i32)> = std::sync::Mutex::new((0, 0));
+/// The frost's tint, 0xAABBGGRR — set by the dock page from the chosen style.
+static FROST_COLOR: AtomicU32 = AtomicU32::new(0x26FFFFFF);
+
+/// Retints the frost behind the dock (live while you try styles in Settings).
+pub fn set_frost_color(color: u32) {
+    if FROST_COLOR.swap(color, Ordering::SeqCst) == color {
+        return;
+    }
+    if let Some(f) = frost() {
+        crate::flyout::acrylic(f, color);
+    }
+}
 
 fn frost() -> Option<HWND> {
     let raw = FROST.load(Ordering::SeqCst);
@@ -87,8 +99,7 @@ fn create_frost(dock: HWND) {
         ) else {
             return;
         };
-        // Same frost as the Control Center and clock panels.
-        crate::flyout::acrylic(h, 0x4C1A1414);
+        crate::flyout::acrylic(h, FROST_COLOR.load(Ordering::SeqCst));
         FROST.store(h.0 as isize, Ordering::SeqCst);
         SetWindowLongPtrW(dock, GWLP_HWNDPARENT, h.0 as isize);
     }

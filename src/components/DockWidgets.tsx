@@ -358,7 +358,7 @@ export function StatusCluster({ c, s }: { c: Controls | null; s: SystemStats | n
 
 // ---------- clock tile ----------
 
-export function ClockTile({ h24, w }: { h24: boolean; w: Weather | null }) {
+export function ClockTile({ h24, w, simple = false }: { h24: boolean; w: Weather | null; simple?: boolean }) {
   const now = useNow(1000);
   const ref = useRef<HTMLButtonElement>(null);
   const d = new Date(now);
@@ -368,7 +368,7 @@ export function ClockTile({ h24, w }: { h24: boolean; w: Weather | null }) {
   const mm = String(d.getMinutes()).padStart(2, "0");
   return (
     <button ref={ref} className="clock-tile flipdock" onClick={() => openFlyout("center", ref.current, 384, 640)} title={d.toLocaleDateString([], { dateStyle: "full" })}>
-      <span className="fd">
+      <span className={`fd ${simple ? "simple" : ""}`}>
         <span className="fd-card">
           <span key={hh} className="fd-num">{hh}</span>
         </span>

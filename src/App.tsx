@@ -39,6 +39,8 @@ import {
   type Weather,
   type WinInfo,
   useAppearance,
+  useAccent,
+  frostColor,
 } from "./ipc";
 
 /** Dock item -> the Widgets switch that hides it (status, clock and apps always stay). */
@@ -133,7 +135,13 @@ export default function Dock() {
   useEffect(() => {
     invoke<string>("voice_hotkey").then(setVoiceKey);
   }, []);
-  useAppearance(cfg?.appearance, true);
+  const musicAccent = useAccent(cfg?.appearance?.accentFromMusic ? media?.art : null, "");
+  useAppearance(cfg?.appearance, true, musicAccent || null);
+  // The frost behind the dock takes the style's tint (live while previewing in Settings).
+  const frost = frostColor(cfg?.appearance);
+  useEffect(() => {
+    if (cfg) invoke("dock_frost", { color: frost });
+  }, [frost, !!cfg]);
   const dockRef = useRef<HTMLDivElement>(null);
   const startRef = useRef<HTMLButtonElement>(null);
   const [dropped, setDropped] = useState(0);
@@ -248,7 +256,7 @@ export default function Dock() {
       case "status":
         return <StatusCluster c={controls} s={system} />;
       case "clock":
-        return <ClockTile h24={cfg.clock24} w={w.weather ? weather : null} />;
+        return <ClockTile h24={cfg.clock24} w={w.weather ? weather : null} simple={cfg.appearance.clockStyle === "simple"} />;
     }
   };
 

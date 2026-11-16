@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
+import { emit, listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
 import { ACCENTS, STYLES } from "./looks";
-import { call, DOCK_LABELS, dockOrder, useAppearance, useConfig, useIcon, type Appearance, type Config, type Pin, type Widgets } from "./ipc";
+import { call, DOCK_LABELS, dockOrder, useAppearance, useIcon, type Appearance, type Config, type Pin, type Widgets } from "./ipc";
 
 
 const WIDGET_LABELS: [keyof Widgets, string][] = [
@@ -69,46 +70,85 @@ function Toggle({ on, onChange, label, hint }: { on: boolean; onChange: (v: bool
   );
 }
 
+function Segmented<T extends string>({ value, options, onChange }: { value: T; options: [T, string][]; onChange: (v: T) => void }) {
+  return (
+    <div className="seg">
+      {options.map(([v, label]) => (
+        <button key={v} className={v === value ? "on" : ""} onClick={() => onChange(v)}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function Settings() {
-  const [saved, save] = useConfig();
+  // `saved` is what's stored; `draft` is what you're trying out. The dock and
+  // panels preview the draft live; nothing is kept until "Save changes".
+  const [saved, setSaved] = useState<Config | null>(null);
   const [draft, setDraft] = useState<Config | null>(null);
   const [status, setStatus] = useState("");
   const [tab, setTab] = useState<Section>("appearance");
-  const lastEdit = useRef(0);
-  // Typing waits for a pause; every switch, slider and swatch applies at once.
-  const typing = useRef(false);
+  const draftRef = useRef<Config | null>(null);
+  draftRef.current = draft;
   const [voiceKey, setVoiceKey] = useState("");
   useEffect(() => {
     invoke<string>("voice_hotkey").then(setVoiceKey);
+    invoke<Config>("get_config").then((c) => {
+      setSaved(c);
+      setDraft(c);
+    });
+    // Outside changes (a widget hidden from the dock) — adopt them unless you're mid-edit.
+    const off = listen<Config>("config", (e) => {
+      setSaved(e.payload);
+      const d = draftRef.current;
+      setDraft((cur) => (!cur || (d && JSON.stringify(d) === JSON.stringify(cur)) ? e.payload : cur));
+    });
+    return () => {
+      off.then((f) => f());
+    };
   }, []);
   useAppearance(draft?.appearance);
+  const dirty = !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved);
 
-  // Seed from the stored config; pick up outside changes (e.g. a widget hidden
-  // from the dock) unless you're in the middle of editing.
+  // Live preview everywhere while you edit.
   useEffect(() => {
-    if (saved && (!draft || Date.now() - lastEdit.current > 2500)) setDraft(saved);
+    if (draft && dirty) emit("config-preview", draft);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved]);
+  }, [draft]);
 
-  // Changes apply as you make them.
+  const saveChanges = async () => {
+    if (!draft) return;
+    setStatus("Saving…");
+    try {
+      const stored = await invoke<Config>("save_config", { cfg: { ...draft, icsUrls: draft.icsUrls.map((u) => u.trim()).filter(Boolean) } });
+      setSaved(stored);
+      setDraft(stored);
+      setStatus("Saved");
+      setTimeout(() => setStatus(""), 1800);
+    } catch (e) {
+      setStatus(`Couldn't save: ${e}`);
+    }
+  };
+  const discard = () => {
+    if (!saved) return;
+    setDraft(saved);
+    emit("config-preview", saved);
+    setStatus("");
+  };
   useEffect(() => {
-    if (!draft || !saved || JSON.stringify(draft) === JSON.stringify(saved)) return;
-    const t = setTimeout(async () => {
-      setStatus("Saving…");
-      try {
-        await save({ ...draft, icsUrls: draft.icsUrls.map((u) => u.trim()).filter(Boolean) });
-        setStatus("Saved");
-      } catch (e) {
-        setStatus(`Couldn't save: ${e}`);
+    const key = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        saveChanges();
       }
-    }, typing.current ? 500 : 0);
-    return () => clearTimeout(t);
-  }, [draft, saved, save]);
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  });
 
   if (!draft) return null;
-  const set = <K extends keyof Config>(k: K, v: Config[K], slow = false) => {
-    typing.current = slow;
-    lastEdit.current = Date.now();
+  const set = <K extends keyof Config>(k: K, v: Config[K], _slow = false) => {
     setDraft({ ...draft, [k]: v });
   };
   const look = (a: Partial<Appearance>) => set("appearance", { ...draft.appearance, ...a });
@@ -166,6 +206,46 @@ export default function Settings() {
               </div>
             </div>
             <p className="hint">Toggles, sliders, bars, links and every selection wear it, including the Wi-Fi and Bluetooth lists.</p>
+
+            <h3>Personalise</h3>
+            <div className="card-group">
+              <div className="row">
+                <span>
+                  App icon size
+                  <small>How big apps look on the dock.</small>
+                </span>
+                <Segmented value={draft.appearance.iconSize} options={[["s", "Small"], ["m", "Medium"], ["l", "Large"]]} onChange={(v) => look({ iconSize: v })} />
+              </div>
+              <div className="row">
+                <span>
+                  Clock
+                  <small>Flip cards, or plain digits.</small>
+                </span>
+                <Segmented value={draft.appearance.clockStyle} options={[["flip", "Flip"], ["simple", "Simple"]]} onChange={(v) => look({ clockStyle: v })} />
+              </div>
+              <div className="row">
+                <span>
+                  Widget tiles
+                  <small>Glass tiles, or flat on the dock.</small>
+                </span>
+                <Segmented value={draft.appearance.tiles} options={[["glass", "Glass"], ["flat", "Flat"]]} onChange={(v) => look({ tiles: v })} />
+              </div>
+              <div className="row">
+                <span>
+                  Banners appear
+                  <small>Where notifications slide in.</small>
+                </span>
+                <Segmented value={draft.bannerPosition} options={[["left", "Left"], ["center", "Centre"], ["right", "Right"]]} onChange={(v) => set("bannerPosition", v)} />
+              </div>
+              <Toggle on={draft.appearance.hoverZoom} onChange={(v) => look({ hoverZoom: v })} label="Grow apps under the pointer" />
+              <Toggle
+                on={draft.appearance.accentFromMusic}
+                onChange={(v) => look({ accentFromMusic: v })}
+                label="Accent follows the music"
+                hint="While something plays, the accent colour comes from its album art."
+              />
+              <Toggle on={draft.appearance.motion === "reduced"} onChange={(v) => look({ motion: v ? "reduced" : "full" })} label="Reduce motion" hint="Fewer animations, no springy bounces." />
+            </div>
 
             <h3>Fine-tune</h3>
             <div className="card-group">
@@ -366,6 +446,16 @@ export default function Settings() {
           </>
         )}
       </main>
+
+      <div className={`s-savebar ${dirty ? "show" : ""}`} role="region" aria-label="Unsaved changes">
+        <span>{status || "You have unsaved changes — you're seeing a preview."}</span>
+        <button className="ghost" onClick={discard}>
+          Discard
+        </button>
+        <button className="primary" onClick={saveChanges}>
+          Save changes
+        </button>
+      </div>
     </div>
   );
 }

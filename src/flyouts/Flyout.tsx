@@ -1,6 +1,6 @@
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { call, useAppearance, useConfig, type FlyoutKind } from "../ipc";
+import { call, useAccent, useAppearance, useChannel, useConfig, type FlyoutKind, type NowPlaying } from "../ipc";
 import { CalendarPanel } from "./CalendarPanel";
 import { CenterPanel } from "./CenterPanel";
 import { ControlCenter } from "./ControlCenter";
@@ -12,7 +12,9 @@ export default function Flyout() {
   const ref = useRef<HTMLDivElement>(null); // inner content: its size is the panel's natural size
   const lastH = useRef(0);
   const [cfg] = useConfig();
-  useAppearance(cfg?.appearance);
+  const media = useChannel<NowPlaying>("media");
+  const musicAccent = useAccent(cfg?.appearance?.accentFromMusic ? media?.art : null, "");
+  useAppearance(cfg?.appearance, false, musicAccent || null);
 
   useEffect(() => {
     const a = listen<{ kind: FlyoutKind; arg: string | null }>("flyout", (e) => {

@@ -8,7 +8,7 @@ window previews, a calendar, and voice commands ("Hey Ledge, open WhatsApp").
 
 **You need:** Windows 11, 64-bit.
 
-1. **Download** `Ledge_0.8.1_x64-setup.exe` from the [latest release](https://github.com/RiyanKothari/ledge/releases/latest)
+1. **Download** `Ledge_0.9.0_x64-setup.exe` from the [latest release](https://github.com/RiyanKothari/ledge/releases/latest)
    (under *Assets*).
 2. **Run it.** The installer isn't code-signed yet, so Windows may show *"Windows protected your PC"* — click
    **More info → Run anyway**. It installs just for you (no admin needed) in a few seconds.
@@ -44,6 +44,14 @@ Settings (right-click the dock → Ledge settings) can show the welcome tour aga
 ### Found a bug?
 
 Open an issue on this repo (what you did, what happened, a screenshot if you can) or tell Riyan.
+
+## What's new in 0.9
+
+- **Lighter glass**: the frosted blur behind the dock takes your style's tint and stays see-through; no dark layer.
+- **Redesigned iOS** (bright frosted pane, crisp rim) and **Midnight** (navy glass, faint stars, blue-violet glow).
+- **Settings preview live, then Save changes** (or Discard; Ctrl + S saves).
+- **More personalisation**: app icon size, flip or simple clock, glass or flat widget tiles, banner position, hover zoom,
+  accent that follows the album art, reduce motion.
 
 ## What's new in 0.8
 

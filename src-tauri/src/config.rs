@@ -55,11 +55,35 @@ pub struct Appearance {
     pub blur: u32,
     /// Accent for bars and highlights, "#rrggbb", or "" for the default.
     pub accent: String,
+    /// App icon size on the dock: "s", "m" or "l".
+    pub icon_size: String,
+    /// Apps grow a little under the pointer.
+    pub hover_zoom: bool,
+    /// Dock clock: "flip" or "simple".
+    pub clock_style: String,
+    /// The accent follows the album art of what's playing.
+    pub accent_from_music: bool,
+    /// Widget tiles on the dock: "glass" or "flat".
+    pub tiles: String,
+    /// "full" or "reduced" animation.
+    pub motion: String,
 }
 
 impl Default for Appearance {
     fn default() -> Self {
-        Self { style: "black".into(), opacity: 0.55, tint: "#16161c".into(), blur: 28, accent: String::new() }
+        Self {
+            style: "black".into(),
+            opacity: 0.4,
+            tint: "#18181c".into(),
+            blur: 28,
+            accent: String::new(),
+            icon_size: "m".into(),
+            hover_zoom: true,
+            clock_style: "flip".into(),
+            accent_from_music: false,
+            tiles: "glass".into(),
+            motion: "full".into(),
+        }
     }
 }
 
@@ -105,6 +129,8 @@ pub struct Config {
     pub wake_word: bool,
     /// The first-run welcome tour has been completed (or skipped).
     pub onboarded: bool,
+    /// Where banners appear: "left", "center" or "right" (top of the screen).
+    pub banner_position: String,
 }
 
 fn default_portfolio() -> String {
@@ -141,6 +167,7 @@ impl Default for Config {
             tray_order: Vec::new(),
             wake_word: false,
             onboarded: false,
+            banner_position: "right".into(),
         }
     }
 }
