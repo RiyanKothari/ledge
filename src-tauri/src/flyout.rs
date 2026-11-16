@@ -68,6 +68,11 @@ fn see_through(h: HWND) {
 
 /// SetWindowCompositionAttribute acrylic blur-behind; `color` is 0xAABBGGRR.
 pub fn acrylic(h: HWND, color: u32) {
+    blur_behind(h, 4, color);
+}
+
+/// `state` 4 = acrylic (dense frost), 3 = plain blur-behind (light, clear — Liquid).
+pub fn blur_behind(h: HWND, state: u32, color: u32) {
     use windows::Win32::Graphics::Dwm::{DWMSBT_NONE, DWMWA_SYSTEMBACKDROP_TYPE};
     use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
     use windows::core::{s, w};
@@ -92,7 +97,7 @@ pub fn acrylic(h: HWND, color: u32) {
         let Some(f) = GetProcAddress(user32, s!("SetWindowCompositionAttribute")) else { return };
         let f: SetWca = std::mem::transmute(f);
         // ACCENT_ENABLE_ACRYLICBLURBEHIND, tint 0xAABBGGRR: a dark, mostly clear pane.
-        let mut accent = Accent { state: 4, flags: 2, color, animation: 0 };
+        let mut accent = Accent { state, flags: 2, color, animation: 0 };
         let mut data = Data { attribute: 19, data: &mut accent, size: size_of::<Accent>() };
         let _ = f(h, &mut data);
     }

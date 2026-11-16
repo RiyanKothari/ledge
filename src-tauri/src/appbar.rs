@@ -45,14 +45,18 @@ static FROST: AtomicIsize = AtomicIsize::new(0);
 static FROST_SIZE: std::sync::Mutex<(i32, i32)> = std::sync::Mutex::new((0, 0));
 /// The frost's tint, 0xAABBGGRR — set by the dock page from the chosen style.
 static FROST_COLOR: AtomicU32 = AtomicU32::new(0x26FFFFFF);
+/// 4 = acrylic frost; 3 = the light, clear blur Liquid uses.
+static FROST_STATE: AtomicU32 = AtomicU32::new(4);
 
 /// Retints the frost behind the dock (live while you try styles in Settings).
-pub fn set_frost_color(color: u32) {
-    if FROST_COLOR.swap(color, Ordering::SeqCst) == color {
+pub fn set_frost_color(color: u32, state: u32) {
+    let state = if state == 3 { 3 } else { 4 };
+    let same = FROST_COLOR.swap(color, Ordering::SeqCst) == color && FROST_STATE.swap(state, Ordering::SeqCst) == state;
+    if same {
         return;
     }
     if let Some(f) = frost() {
-        crate::flyout::acrylic(f, color);
+        crate::flyout::blur_behind(f, state, color);
     }
 }
 
@@ -99,7 +103,7 @@ fn create_frost(dock: HWND) {
         ) else {
             return;
         };
-        crate::flyout::acrylic(h, FROST_COLOR.load(Ordering::SeqCst));
+        crate::flyout::blur_behind(h, FROST_STATE.load(Ordering::SeqCst), FROST_COLOR.load(Ordering::SeqCst));
         FROST.store(h.0 as isize, Ordering::SeqCst);
         SetWindowLongPtrW(dock, GWLP_HWNDPARENT, h.0 as isize);
     }

@@ -1229,3 +1229,34 @@ html[data-motion="reduced"] *, html[data-motion="reduced"] *::before, html[data-
 .s-savebar .ghost:hover { background: var(--card-hi); color: var(--text); }
 .s-savebar .primary { padding: 8px 16px; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 700; cursor: pointer; }
 .s-main { padding-bottom: 90px !important; }
+
+/* ===== Liquid — Apple-style Liquid Glass: clear pane, light blur behind (Windows blur-behind),
+   a specular rim that catches light top-left, brightened lensing edges, a soft inner glow ===== */
+.dock-shell.s-liquid .glass {
+  background:
+    radial-gradient(180px 34px at 16% 0%, rgba(255, 255, 255, 0.42), transparent 72%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 30%, rgba(255, 255, 255, 0) 56%, rgba(255, 255, 255, 0.07) 100%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 6%, rgba(255, 255, 255, 0) 94%, rgba(255, 255, 255, 0.16)),
+    rgba(255, 255, 255, 0.035) !important;
+}
+.dock-shell.s-liquid .glass::after {
+  background: none !important;
+  box-shadow:
+    inset 1.5px 1.5px 0 rgba(255, 255, 255, 0.72),
+    inset -1px -1px 0 rgba(255, 255, 255, 0.26),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    inset 0 0 16px rgba(255, 255, 255, 0.12),
+    inset 0 -10px 18px rgba(255, 255, 255, 0.05) !important;
+}
+.dock-shell.s-liquid .dock { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+html[data-style="liquid"][data-view="bar"] .card,
+html[data-style="liquid"][data-view="bar"] .clock-tile.flipdock,
+html[data-style="liquid"][data-view="bar"] .apps-group {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03) 60%, rgba(255, 255, 255, 0.06)) !important;
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.55), inset -1px -1px 0 rgba(255, 255, 255, 0.16), inset 0 0 10px rgba(255, 255, 255, 0.07) !important;
+  border-radius: 16px;
+}
+html[data-style="liquid"] .fd-card { background: rgba(255, 255, 255, 0.1) !important; box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.45), inset -1px -1px 0 rgba(255, 255, 255, 0.12) !important; }
+html[data-style="liquid"] .fd-card::after { background: rgba(255, 255, 255, 0.18); }
+html[data-style="liquid"] .app img { filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35)); }
+.settings2 .style-prev.p-liquid, .w-style span[style*="radial-gradient(60%"] { box-shadow: inset 1.5px 1.5px 0 rgba(255, 255, 255, 0.7), inset -1px -1px 0 rgba(255, 255, 255, 0.25), 0 4px 14px rgba(0, 0, 0, 0.35); }

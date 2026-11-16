@@ -347,8 +347,8 @@ fn voice_listen(app: AppHandle) {
 }
 
 #[tauri::command]
-fn dock_frost(color: u32) {
-    appbar::set_frost_color(color);
+fn dock_frost(color: u32, state: Option<u32>) {
+    appbar::set_frost_color(color, state.unwrap_or(4));
 }
 
 #[tauri::command]
