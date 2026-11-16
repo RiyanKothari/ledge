@@ -11,7 +11,7 @@ export const STYLES: { id: DockStyle; name: string; look: Pick<Appearance, "tint
   {
     id: "liquid",
     name: "Liquid",
-    look: { tint: "#ffffff", opacity: 0.06, blur: 0 },
+    look: { tint: "#121218", opacity: 0.1, blur: 0 },
     preview:
       "radial-gradient(60% 30% at 20% 0%,rgba(255,255,255,.55),transparent 70%),linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.04) 45%,rgba(255,255,255,.1)),linear-gradient(120deg,#3a6ea5,#a0587a 60%,#d99a4e)",
   },

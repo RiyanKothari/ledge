@@ -140,7 +140,8 @@ export default function Dock() {
   // The frost behind the dock takes the style's tint (live while previewing in Settings).
   const frost = frostColor(cfg?.appearance);
   useEffect(() => {
-    if (cfg) invoke("dock_frost", { color: frost, state: style === "liquid" ? 3 : 4 });
+    // Windows' plain blur-behind (state 3) draws black on Windows 11; acrylic (4) with a faint tint is the clear look.
+    if (cfg) invoke("dock_frost", { color: frost, state: 4 });
   }, [frost, style, !!cfg]);
   const dockRef = useRef<HTMLDivElement>(null);
   const startRef = useRef<HTMLButtonElement>(null);

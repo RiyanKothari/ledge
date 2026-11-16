@@ -1260,3 +1260,65 @@ html[data-style="liquid"] .fd-card { background: rgba(255, 255, 255, 0.1) !impor
 html[data-style="liquid"] .fd-card::after { background: rgba(255, 255, 255, 0.18); }
 html[data-style="liquid"] .app img { filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35)); }
 .settings2 .style-prev.p-liquid, .w-style span[style*="radial-gradient(60%"] { box-shadow: inset 1.5px 1.5px 0 rgba(255, 255, 255, 0.7), inset -1px -1px 0 rgba(255, 255, 255, 0.25), 0 4px 14px rgba(0, 0, 0, 0.35); }
+
+/* Liquid without the milky white: a clear (very slightly dark) pane; light lives only in
+   the thin specular rim and a narrow highlight, never as a fill */
+.dock-shell.s-liquid .glass {
+  background:
+    radial-gradient(140px 14px at 16% 0%, rgba(255, 255, 255, 0.22), transparent 75%),
+    rgba(0, 0, 0, 0.06) !important;
+}
+.dock-shell.s-liquid .glass::after {
+  box-shadow:
+    inset 1.5px 1.5px 0 rgba(255, 255, 255, 0.55),
+    inset -1px -1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+}
+html[data-style="liquid"][data-view="bar"] .card,
+html[data-style="liquid"][data-view="bar"] .clock-tile.flipdock,
+html[data-style="liquid"][data-view="bar"] .apps-group {
+  background: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.4), inset -1px -1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+html[data-style="liquid"] .fd-card { background: rgba(0, 0, 0, 0.18) !important; box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.35) !important; }
+
+/* ======================================================================
+   FINAL GLASS (classic glassmorphism): heavy blur behind with only a faint
+   tint (frostColor), a light frosted veil, a thin bright border, and frosted
+   cards for widgets. Styles only shift the tint.
+   ====================================================================== */
+.dock-shell .glass, .dock-shell.s-black .glass, .dock-shell.s-custom .glass,
+.dock-shell.s-liquid .glass, .dock-shell.s-ios .glass, .dock-shell.s-midnight .glass {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+.dock-shell.s-ios .glass { background: rgba(225, 235, 255, 0.1) !important; }
+.dock-shell.s-midnight .glass { background: rgba(80, 90, 200, 0.12) !important; }
+.dock-shell .glass::after, .dock-shell.s-black .glass::after, .dock-shell.s-custom .glass::after,
+.dock-shell.s-liquid .glass::after, .dock-shell.s-ios .glass::after, .dock-shell.s-midnight .glass::after {
+  background: none !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3) !important;
+}
+.dock-shell.s-midnight .glass::after { box-shadow: inset 0 0 0 1px rgba(175, 185, 255, 0.34) !important; }
+.dock-shell .dock, .dock-shell.s-liquid .dock { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+
+html[data-view="bar"][data-style] .card,
+html[data-view="bar"][data-style] .clock-tile.flipdock,
+html[data-view="bar"][data-style] .apps-group {
+  background: rgba(255, 255, 255, 0.09) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
+  border-radius: 16px;
+}
+html[data-view="bar"][data-style] .fd-card { background: rgba(255, 255, 255, 0.12) !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18) !important; }
+html[data-view="bar"][data-style] .fd-card::after { background: rgba(0, 0, 0, 0.25); }
+html[data-view="bar"][data-style] .app img { filter: none; }
+
+/* White keeps its light pane and dark text */
+html[data-view="bar"][data-tone="light"] .dock-shell .glass { background: rgba(255, 255, 255, 0.5) !important; }
+html[data-view="bar"][data-tone="light"][data-style] .card,
+html[data-view="bar"][data-tone="light"][data-style] .clock-tile.flipdock,
+html[data-view="bar"][data-tone="light"][data-style] .apps-group { background: rgba(255, 255, 255, 0.45) !important; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06) !important; }
+
+/* "Flat" tiles option still wins */
+html[data-view="bar"][data-tiles="flat"][data-style] .card,
+html[data-view="bar"][data-tiles="flat"][data-style] .clock-tile.flipdock,
+html[data-view="bar"][data-tiles="flat"][data-style] .apps-group { background: transparent !important; box-shadow: none !important; }
