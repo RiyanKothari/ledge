@@ -21,6 +21,7 @@ mod system;
 mod taskbar;
 mod tray;
 mod voice;
+mod voicematch;
 mod weather;
 mod wifi;
 mod winwatch;
@@ -390,6 +391,12 @@ async fn open_settings(app: AppHandle, tab: Option<String>) -> Res<()> {
 /// The section Settings should open on (set by a "Connect…" link elsewhere).
 static SETTINGS_TAB: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
+/// (samples of your voice, the folder they're in) for Settings → Voice.
+#[tauri::command]
+fn voice_samples() -> (usize, String) {
+    (voicematch::sample_count(), voicematch::dir().to_string_lossy().to_string())
+}
+
 #[tauri::command]
 fn settings_tab_take() -> Option<String> {
     SETTINGS_TAB.lock().unwrap_or_else(|e| e.into_inner()).take()
@@ -530,6 +537,7 @@ pub fn run() {
             preview_hover,
             open_settings,
             settings_tab_take,
+            voice_samples,
             quit,
         ])
         .setup(|app| {

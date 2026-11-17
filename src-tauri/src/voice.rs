@@ -766,15 +766,17 @@ pub enum Decision {
 ///  - risky commands (lock, close, screenshot, radios off) only when it's sure;
 ///    otherwise Ledge just wakes and waits for you to say it again;
 ///  - without a wake word, a command only counts while Ledge is awake.
-pub fn decide(text: &str, sure: bool, armed: bool, find: impl Fn(&str) -> Option<Action>) -> Decision {
+pub fn decide(text: &str, sure: bool, armed: bool, voiced: bool, find: impl Fn(&str) -> Option<Action>) -> Decision {
     match wake_split(text) {
-        Some((strong, _)) if !strong && !sure => Decision::Ignore,
+        // Your own voice matched "Hey Ledge": a near-miss like "hey lege" is you.
+        Some((strong, _)) if !strong && !sure && !voiced => Decision::Ignore,
         Some((_, rest)) if rest.is_empty() => Decision::Arm,
         Some((_, rest)) => match find(&rest) {
             Some(a) if risky(&a) && !sure => Decision::Arm,
             Some(_) => Decision::Run(rest),
             None => Decision::Arm,
         },
+        // No wake word: only while awake (a strong voice match wakes Ledge first).
         None if armed => match find(text) {
             Some(a) if risky(&a) && !sure => Decision::Ignore,
             Some(_) => Decision::Run(canon(text)),
@@ -787,6 +789,32 @@ pub fn decide(text: &str, sure: bool, armed: bool, find: impl Fn(&str) -> Option
 fn text_case(s: &str) -> String {
     let mut c = s.chars();
     c.next().map(|f| f.to_uppercase().collect::<String>() + c.as_str()).unwrap_or_default()
+}
+
+pub(crate) fn log_line(line: &str) {
+    log(line);
+}
+
+/// When your own voice last matched "Hey Ledge" (see voicematch.rs), and how surely.
+static VOICE_AT: Mutex<Option<(Instant, bool)>> = Mutex::new(None);
+
+/// Your voice matched within the last few seconds: (any match, a strong one).
+fn voice_matched() -> (bool, bool) {
+    match *VOICE_AT.lock().unwrap_or_else(|e| e.into_inner()) {
+        Some((t, strong)) if t.elapsed() < Duration::from_millis(3500) => (true, strong),
+        _ => (false, false),
+    }
+}
+
+fn on_voice_match(app: &AppHandle, strong: bool, score: f64) {
+    if SPEAKING.load(Ordering::SeqCst) {
+        return;
+    }
+    log(&format!("voice match {score:.2} ({})", if strong { "your voice: waking" } else { "close: vouching for Windows" }));
+    *VOICE_AT.lock().unwrap_or_else(|e| e.into_inner()) = Some((Instant::now(), strong));
+    if strong && !armed() {
+        arm(app, true);
+    }
 }
 
 /// Appends a line to %APPDATA%\Ledge\voice.log (kept under ~128 KB).
@@ -900,9 +928,22 @@ fn on_result(app: &AppHandle, text: &str, conf: SpeechRecognitionConfidence) {
         return;
     }
     let sure = matches!(conf, SpeechRecognitionConfidence::High | SpeechRecognitionConfidence::Medium);
-    match decide(text, sure, armed(), lookup) {
+    let (voiced, voiced_strong) = voice_matched();
+    // Windows was sure it heard just "Hey Ledge" but your voice didn't match:
+    // keep that moment as a new sample, so the match keeps learning your voice.
+    if sure && !voiced_strong && after_wake(text).is_some_and(|r| r.is_empty()) && matches!(wake_split(text), Some((true, _))) {
+        std::thread::spawn(|| {
+            std::thread::sleep(Duration::from_millis(300));
+            crate::voicematch::learn_last();
+        });
+    }
+    match decide(text, sure, armed(), voiced, lookup) {
         Decision::Run(cmd) => execute(app, &cmd),
-        Decision::Arm => arm(app, true),
+        Decision::Arm => {
+            if !armed() {
+                arm(app, true);
+            }
+        }
         Decision::Ignore => log("  (ignored: not sure enough)"),
     }
 }
@@ -942,7 +983,7 @@ fn on_hypothesis(app: &AppHandle, text: &str) {
         if matches!(wake_split(&text), Some((false, _))) {
             return;
         }
-        match decide(&text, false, armed(), lookup) {
+        match decide(&text, false, armed(), voice_matched().0, lookup) {
             Decision::Run(cmd) => {
                 log(&format!("live words \"{text}\": no final result, running it"));
                 *FALLBACK.lock().unwrap_or_else(|e| e.into_inner()) = Some((canon(&cmd), Instant::now()));
@@ -1174,11 +1215,17 @@ pub fn listen(app: &AppHandle) {
 /// Turns the "Hey Ledge" listener on or off (Settings → General → Voice).
 pub fn set_wake(app: &AppHandle, on: bool) {
     if !on {
+        crate::voicematch::stop();
         if !armed() {
             stop();
         }
         return;
     }
+    let vm = app.clone();
+    crate::voicematch::start(move |strong, score| {
+        let app = vm.clone();
+        std::thread::spawn(move || on_voice_match(&app, strong, score));
+    });
     let a = app.clone();
     std::thread::spawn(move || {
         com_init();
@@ -1255,22 +1302,26 @@ mod tests {
         let map: HashMap<String, Action> = phrases(&apps).into_iter().map(|(p, a)| (canon(&p), a)).collect();
         let find = |c: &str| map.get(&canon(c)).cloned();
         // The 13:50 mishearing that locked the PC: unsure + near-miss wake.
-        assert_eq!(decide("hey lege lock", false, false, find), Decision::Ignore);
-        assert_eq!(decide("hey ledges screenshot", false, false, find), Decision::Ignore);
+        assert_eq!(decide("hey lege lock", false, false, false, find), Decision::Ignore);
+        assert_eq!(decide("hey ledges screenshot", false, false, false, find), Decision::Ignore);
         // A clear wake but an unsure risky command: wake and wait, don't act.
-        assert_eq!(decide("hey ledge lock", false, false, find), Decision::Arm);
-        assert_eq!(decide("hey ledge close whatsapp", false, false, find), Decision::Arm);
-        assert_eq!(decide("hey ledge close whatsapp", true, false, find), Decision::Run("close whatsapp".into()));
+        assert_eq!(decide("hey ledge lock", false, false, false, find), Decision::Arm);
+        assert_eq!(decide("hey ledge close whatsapp", false, false, false, find), Decision::Arm);
+        assert_eq!(decide("hey ledge close whatsapp", true, false, false, find), Decision::Run("close whatsapp".into()));
         // Clear wake, harmless command: runs even when unsure (so it isn't deaf).
-        assert_eq!(decide("hey ledge what time is it", false, false, find), Decision::Run("what time is it".into()));
-        assert_eq!(decide("hey ledge", false, false, find), Decision::Arm);
+        assert_eq!(decide("hey ledge what time is it", false, false, false, find), Decision::Run("what time is it".into()));
+        assert_eq!(decide("hey ledge", false, false, false, find), Decision::Arm);
         // A near-miss wake counts when the engine is sure.
-        assert_eq!(decide("hey ledger open whatsapp", true, false, find), Decision::Run("open whatsapp".into()));
+        assert_eq!(decide("hey ledger open whatsapp", true, false, false, find), Decision::Run("open whatsapp".into()));
         // No wake word: only while awake, and risky only when sure.
-        assert_eq!(decide("open whatsapp", true, false, find), Decision::Ignore);
-        assert_eq!(decide("open whatsapp", false, true, find), Decision::Run("open whatsapp".into()));
-        assert_eq!(decide("lock", false, true, find), Decision::Ignore);
-        assert_eq!(decide("lock", true, true, find), Decision::Run("lock".into()));
+        assert_eq!(decide("open whatsapp", true, false, false, find), Decision::Ignore);
+        assert_eq!(decide("open whatsapp", false, true, false, find), Decision::Run("open whatsapp".into()));
+        assert_eq!(decide("lock", false, true, false, find), Decision::Ignore);
+        assert_eq!(decide("lock", true, true, false, find), Decision::Run("lock".into()));
+        // Your voice matched: "hey lege" (unsure) is you; a risky command still needs a sure match.
+        assert_eq!(decide("hey lege what time is it", false, false, true, find), Decision::Run("what time is it".into()));
+        assert_eq!(decide("hey lege lock", false, false, true, find), Decision::Arm);
+        assert_eq!(decide("what time is it", false, false, true, find), Decision::Ignore, "a vouch alone never runs a bare command");
     }
 
     #[test]

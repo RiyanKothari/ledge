@@ -93,8 +93,10 @@ export default function Settings() {
   const draftRef = useRef<Config | null>(null);
   draftRef.current = draft;
   const [voiceKey, setVoiceKey] = useState("");
+  const [samples, setSamples] = useState<[number, string]>([0, ""]);
   useEffect(() => {
     invoke<string>("voice_hotkey").then(setVoiceKey);
+    invoke<[number, string]>("voice_samples").then(setSamples);
     invoke<string | null>("settings_tab_take").then((t) => t && setTab(t as Section));
     const offTab = listen<string>("settings-tab", (e) => setTab(e.payload as Section));
     invoke<Config>("get_config").then((c) => {
@@ -379,6 +381,19 @@ export default function Settings() {
                 label="Listen for “Hey Ledge”"
                 hint="Say “Hey Ledge, what's the weather?” or “Hey Ledge, open WhatsApp”. Recognised on this PC by Windows; nothing is sent anywhere. Keeps the microphone on while enabled."
               />
+              <div className="row">
+                <span>
+                  Voice match{samples[0] >= 3 ? ` · ${samples[0]} samples of your voice` : " · off"}
+                  <small>
+                    {samples[0] >= 3
+                      ? "Ledge recognises your own “Hey Ledge” and keeps learning: when Windows clearly hears you but the match misses, it saves that as a new sample."
+                      : "Put 3 or more short WAV clips (16 kHz) of you saying “Hey Ledge” in this folder."}
+                  </small>
+                </span>
+                <button className="ghost" onClick={() => call.launch(samples[1])}>
+                  Open folder
+                </button>
+              </div>
               <Toggle on={draft.voiceReplies} onChange={(v) => set("voiceReplies", v)} label="Speak answers out loud" hint="Uses your Windows voice (Settings → Time & language → Speech)." />
             </div>
             <p className="hint">

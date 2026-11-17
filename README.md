@@ -8,7 +8,7 @@ window previews, a calendar, and voice commands ("Hey Ledge, open WhatsApp").
 
 **You need:** Windows 11, 64-bit.
 
-1. **Download** `Ledge_0.9.14_x64-setup.exe` from the [latest release](https://github.com/RiyanKothari/ledge/releases/latest)
+1. **Download** `Ledge_0.9.15_x64-setup.exe` from the [latest release](https://github.com/RiyanKothari/ledge/releases/latest)
    (under *Assets*).
 2. **Run it.** The installer isn't code-signed yet, so Windows may show *"Windows protected your PC"* — click
    **More info → Run anyway**. It installs just for you (no admin needed) in a few seconds.
@@ -47,6 +47,12 @@ Open an issue on this repo (what you did, what happened, a screenshot if you can
 
 ## What's new in 0.9
 
+- **Voice match**: Ledge learns your own “Hey Ledge” from a few short clips (in `%APPDATA%\Ledge\voice`) and keeps
+  learning as you use it, so it wakes for you even when Windows mishears the words. Misheard risky commands (lock,
+  close, screenshot) still need a confident match.
+- **Close apps by voice** (“Hey Ledge, close WhatsApp”, “close this window”) and **Connected apps** in Settings: Claude,
+  ChatGPT (Codex usage), Google / Outlook / iCloud calendars, weather, WhatsApp, media, Phone Link and RennSquare, each
+  with a live status.
 - **Hey Ledge hears you more often** (catches the wake word mid-sentence and in close-sounding forms, and acts on your
   live words if Windows drops the final result), with a glass orb of translucent colour
   petals around a bright core.
