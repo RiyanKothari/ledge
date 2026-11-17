@@ -8,7 +8,7 @@ window previews, a calendar, and voice commands ("Hey Ledge, open WhatsApp").
 
 **You need:** Windows 11, 64-bit.
 
-1. **Download** `Ledge_0.9.8_x64-setup.exe` from the [latest release](https://github.com/RiyanKothari/ledge/releases/latest)
+1. **Download** `Ledge_0.9.9_x64-setup.exe` from the [latest release](https://github.com/RiyanKothari/ledge/releases/latest)
    (under *Assets*).
 2. **Run it.** The installer isn't code-signed yet, so Windows may show *"Windows protected your PC"* — click
    **More info → Run anyway**. It installs just for you (no admin needed) in a few seconds.
@@ -47,6 +47,9 @@ Open an issue on this repo (what you did, what happened, a screenshot if you can
 
 ## What's new in 0.9
 
+- **Hey Ledge, rebuilt**: faster and far more reliable (a compact grammar in your own English, e.g. Indian English), with a
+  calm glass card that shows your words as you speak. Ask the time, date, weather, battery, what's playing, your next
+  meeting or Claude usage and Ledge answers out loud; set timers; lock the PC; take a screenshot.
 - **Lighter glass**: the frosted blur behind the dock takes your style's tint and stays see-through; no dark layer.
 - **Redesigned iOS** (bright frosted pane, crisp rim) and **Midnight** (navy glass, faint stars, blue-violet glow).
 - **Settings preview live, then Save changes** (or Discard; Ctrl + S saves).

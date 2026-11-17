@@ -426,12 +426,14 @@ export default function Settings() {
                 on={draft.wakeWord}
                 onChange={(v) => set("wakeWord", v)}
                 label="Listen for “Hey Ledge”"
-                hint="Say “Hey Ledge, open WhatsApp”. Recognised on this PC by Windows; nothing is sent anywhere. Keeps the microphone on while enabled."
+                hint="Say “Hey Ledge, what's the weather?” or “Hey Ledge, open WhatsApp”. Recognised on this PC by Windows; nothing is sent anywhere. Keeps the microphone on while enabled."
               />
+              <Toggle on={draft.voiceReplies} onChange={(v) => set("voiceReplies", v)} label="Speak answers out loud" hint="Uses your Windows voice (Settings → Time & language → Speech)." />
             </div>
             <p className="hint">
-              Or press <code>{voiceKey || "the mic on the dock"}</code> (or the mic on the dock) and say a command: “open Chrome”, “pause”, “next song”, “volume 40”,
-              “do not disturb on”, “Wi-Fi off”, “brightness 70”, “show my calendar”, “Claude usage”, “show desktop”.
+              Or press <code>{voiceKey || "the mic on the dock"}</code> (or the mic on the dock) and just ask. Questions: “what time is it”, “what's the weather”,
+              “how much battery”, “what's playing”, “what's next on my calendar”, “Claude usage”, “set a timer for ten minutes”. Commands: “open Chrome”, “pause”,
+              “next song”, “volume forty”, “do not disturb on”, “Wi-Fi off”, “lock the computer”, “take a screenshot”.
             </p>
             <p className="hint">
               Ledge always puts the taskbar back when it quits. If it ever doesn't, run <code>ledge --restore-taskbar</code> or restart Windows Explorer.

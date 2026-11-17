@@ -127,6 +127,8 @@ pub struct Config {
     pub tray_order: Vec<String>,
     /// Listen for "Hey Ledge" (keeps the microphone on). Off until the person turns it on.
     pub wake_word: bool,
+    /// Ledge says its answers out loud ("It's 28 degrees…").
+    pub voice_replies: bool,
     /// The first-run welcome tour has been completed (or skipped).
     pub onboarded: bool,
     /// Where banners appear: "left", "center" or "right" (top of the screen).
@@ -166,6 +168,7 @@ impl Default for Config {
             appearance: Appearance::default(),
             tray_order: Vec::new(),
             wake_word: false,
+            voice_replies: true,
             onboarded: false,
             banner_position: "right".into(),
         }

@@ -125,13 +125,11 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
     glass(&t, true);
     let p = builder(app, "preview", "Ledge previews").inner_size(400.0, 200.0).build()?;
     glass(&p, true);
-    // The voice pill draws its own glass (a rounded pill), so no window backdrop.
-    let v = builder(app, "voice", "Ledge voice").inner_size(460.0, 320.0).shadow(false).build()?;
+    // The voice card: the same frosted glass as the Wi-Fi and calendar panels.
+    let v = builder(app, "voice", "Ledge voice").inner_size(crate::voice::CARD_W, crate::voice::CARD_H).build()?;
+    glass(&v, true);
     if let Some(h) = hwnd(&v) {
-        unsafe {
-            let ex = GetWindowLongPtrW(h, GWL_EXSTYLE);
-            SetWindowLongPtrW(h, GWL_EXSTYLE, ex | WS_EX_TOOLWINDOW.0 as isize | WS_EX_NOACTIVATE.0 as isize);
-        }
+        see_through(h);
     }
     // The flyout stops painting while hidden; the banner and preview pages are
     // static, and toggling their web view's visibility left them blank when

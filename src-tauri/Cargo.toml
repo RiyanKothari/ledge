@@ -1,6 +1,6 @@
 [package]
 name = "ledge"
-version = "0.9.8"
+version = "0.9.9"
 description = "A smart dock that replaces the Windows 11 taskbar, with live widgets"
 edition = "2024"
 rust-version = "1.90"
@@ -38,6 +38,12 @@ windows = { version = "0.62.2", features = [
   "Devices_Radios",
   "Foundation",
   "Foundation_Collections",
+  "Globalization",
+  "Media_Core",
+  "Media_SpeechSynthesis",
+  "Storage",
+  "System_UserProfile",
+  "Win32_System_Shutdown",
   "Media_Control",
   "Media_SpeechRecognition",
   "Storage_Streams",

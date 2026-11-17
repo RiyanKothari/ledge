@@ -53,6 +53,7 @@ export type Config = {
   appearance: Appearance;
   trayOrder: string[];
   wakeWord: boolean;
+  voiceReplies: boolean;
   onboarded: boolean;
   bannerPosition: "left" | "center" | "right";
 };
