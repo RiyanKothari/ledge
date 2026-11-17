@@ -311,7 +311,7 @@ pub fn grammar(lang: &str, apps: &[shell::AppEntry]) -> String {
         r##"<?xml version="1.0" encoding="UTF-8"?>
 <grammar version="1.0" xml:lang="{lang}" root="top" xmlns="http://www.w3.org/2001/06/grammar">
 <rule id="top" scope="public"><one-of>
-<item><item repeat="0-1"><ruleref special="GARBAGE"/></item><ruleref uri="#wake"/><item repeat="0-1"><ruleref uri="#cmd"/></item></item>
+<item><ruleref uri="#wake"/><item repeat="0-1"><ruleref uri="#cmd"/></item></item>
 <item><ruleref uri="#cmd"/></item>
 </one-of></rule>
 <rule id="wake"><one-of>{wake}</one-of></rule>
@@ -853,6 +853,14 @@ fn on_hypothesis(app: &AppHandle, text: &str) {
     if SPEAKING.load(Ordering::SeqCst) {
         return;
     }
+    {
+        static LAST: Mutex<String> = Mutex::new(String::new());
+        let mut last = LAST.lock().unwrap_or_else(|e| e.into_inner());
+        if *last != text {
+            *last = text.to_string();
+            log(&format!("hearing \"{text}\""));
+        }
+    }
     let rest = after_wake(text);
     if rest.is_none() && !armed() {
         return;
@@ -999,6 +1007,7 @@ fn ensure_running(app: &AppHandle) -> Result<(), String> {
         }
         Ok(())
     }));
+    watch_state(&r);
     let session = r.ContinuousRecognitionSession().map_err(|e| e.message().to_string())?;
     let _ = session.SetAutoStopSilenceTimeout(windows::Foundation::TimeSpan { Duration: 24 * 3600 * 10_000_000 });
     let a = app.clone();
@@ -1040,6 +1049,33 @@ fn ensure_running(app: &AppHandle) -> Result<(), String> {
     session.StartAsync().and_then(|op| op.join()).map_err(|e| e.message().to_string())?;
     *REC.lock().unwrap_or_else(|e| e.into_inner()) = Some(r);
     Ok(())
+}
+
+/// Logs what the engine is doing (capturing, sound, speech, paused…) — the
+/// first thing to read when "Hey Ledge" doesn't respond.
+fn watch_state(r: &SpeechRecognizer) {
+    use windows::Foundation::TypedEventHandler;
+    use windows::Media::SpeechRecognition::SpeechRecognizerStateChangedEventArgs;
+    static LAST: Mutex<String> = Mutex::new(String::new());
+    let _ = r.StateChanged(&TypedEventHandler::<SpeechRecognizer, SpeechRecognizerStateChangedEventArgs>::new(|_, args| {
+        let state = args.as_ref().and_then(|a| a.State().ok()).map(|s| s.0).unwrap_or(-1);
+        let name = match state {
+            0 => "idle",
+            1 => "capturing",
+            2 => "processing",
+            3 => "sound started",
+            4 => "sound ended",
+            5 => "speech detected",
+            6 => "paused",
+            _ => "unknown",
+        };
+        let mut last = LAST.lock().unwrap_or_else(|e| e.into_inner());
+        if *last != name {
+            *last = name.to_string();
+            log(&format!("engine: {name}"));
+        }
+        Ok(())
+    }));
 }
 
 fn com_init() {
@@ -1252,6 +1288,25 @@ mod tests {
         let last = log.lines().last().unwrap_or("");
         println!("{last}");
         assert!(last.contains("grammar"), "grammar was rejected: {last}");
+    }
+
+    /// Runs the real listener for 12 s and prints what the engine does.
+    #[test]
+    #[ignore]
+    fn live_listen() {
+        com_init();
+        let apps = shell::apps_cached();
+        let list = phrases(&apps);
+        let r = build(&apps, &list).expect("recognizer");
+        watch_state(&r);
+        let s = r.ContinuousRecognitionSession().unwrap();
+        s.StartAsync().unwrap().join().unwrap();
+        std::thread::sleep(Duration::from_secs(12));
+        let _ = s.StopAsync().and_then(|o| o.join());
+        let log = std::fs::read_to_string(config::dir().join("voice.log")).unwrap_or_default();
+        for l in log.lines().rev().take(12).collect::<Vec<_>>().into_iter().rev() {
+            println!("{l}");
+        }
     }
 
     #[test]
