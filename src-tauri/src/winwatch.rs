@@ -262,23 +262,45 @@ pub fn click_group(raw: &[i64]) {
 /// Brings an already-open window of the app with this AUMID to the front.
 /// Win32 apps often use their exe's name as the notification AUMID ("Chrome"),
 /// so the exe name is matched too.
-pub fn focus_app(aumid: &str) -> bool {
+/// Every open window of the app `aumid`: by app ID, else by its program's name.
+fn windows_of(aumid: &str) -> Vec<WinInfo> {
     let want = aumid.to_lowercase();
     if want.is_empty() {
-        return false;
+        return Vec::new();
     }
     let list = enumerate();
-    let stem = |exe: &str| {
-        std::path::Path::new(exe).file_stem().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default()
-    };
-    let hit = list
-        .iter()
-        .find(|w| !w.aumid.is_empty() && w.aumid.to_lowercase() == want)
-        .or_else(|| list.iter().find(|w| {
+    let by_id: Vec<WinInfo> = list.iter().filter(|w| !w.aumid.is_empty() && w.aumid.to_lowercase() == want).cloned().collect();
+    if !by_id.is_empty() {
+        return by_id;
+    }
+    let stem = |exe: &str| std::path::Path::new(exe).file_stem().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default();
+    list.into_iter()
+        .filter(|w| {
             let s = stem(&w.exe);
             s.len() >= 4 && want.contains(&s)
-        }));
-    match hit {
+        })
+        .collect()
+}
+
+/// Asks every window of the app to close, as its X button would (apps can
+/// still ask to save). Returns how many windows were asked.
+pub fn close_app(aumid: &str) -> usize {
+    let ws = windows_of(aumid);
+    for w in &ws {
+        close(w.hwnd);
+    }
+    ws.len()
+}
+
+/// Closes the window you're using; returns its title.
+pub fn close_active() -> Option<String> {
+    let w = enumerate().into_iter().find(|w| w.active)?;
+    close(w.hwnd);
+    Some(w.title)
+}
+
+pub fn focus_app(aumid: &str) -> bool {
+    match windows_of(aumid).first() {
         Some(w) => {
             bring_forward(hwnd(w.hwnd));
             true

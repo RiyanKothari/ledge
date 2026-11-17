@@ -29,6 +29,8 @@ static BUSY: AtomicBool = AtomicBool::new(false);
 #[derive(Clone, Debug, PartialEq)]
 pub enum Action {
     Open(String, String), // (app name, AppsFolder id)
+    Close(String, String),
+    CloseActive,
     Media(&'static str),
     Volume(Option<f32>, bool),
     VolumeStep(f32),
@@ -136,6 +138,7 @@ fn spoken(name: &str) -> Vec<String> {
 }
 
 const VERBS: [&str; 4] = ["open", "launch", "start", "switch to"];
+const CLOSE_VERBS: [&str; 3] = ["close", "quit", "exit"];
 /// Wake phrases, including what "Hey Ledge" often sounds like to the engine.
 const WAKE: [&str; 11] =
     ["hey ledge", "hi ledge", "hello ledge", "ok ledge", "okay ledge", "hey ledger", "hey lege", "hey lodge", "a ledge", "hey ledges", "ledge"];
@@ -249,6 +252,7 @@ pub fn commands() -> Vec<(String, Action)> {
         add(&[&format!("{word} off"), &format!("turn off {word}")], Action::Radio(radio, false));
     }
     // Windows and Ledge
+    add(&["close this window", "close this", "close the window", "close this app", "close it"], Action::CloseActive);
     add(&["show desktop", "show the desktop"], Action::Shell("desktop"));
     add(&["task manager", "open task manager"], Action::Shell("taskManager"));
     add(&["lock", "lock the computer", "lock my pc", "lock the pc", "lock screen"], Action::Lock);
@@ -279,6 +283,12 @@ pub fn phrases(apps: &[shell::AppEntry]) -> Vec<(String, Action)> {
                     v.push((p, Action::Open(a.name.clone(), a.id.clone())));
                 }
             }
+            for verb in CLOSE_VERBS {
+                let p = format!("{verb} {name}");
+                if seen.insert(canon(&p)) {
+                    v.push((p, Action::Close(a.name.clone(), a.id.clone())));
+                }
+            }
         }
     }
     v
@@ -301,9 +311,11 @@ pub fn grammar(lang: &str, apps: &[shell::AppEntry]) -> String {
         String::new()
     } else {
         cmds.push(r##"<item><ruleref uri="#verb"/><ruleref uri="#app"/></item>"##.into());
+        cmds.push(r##"<item><ruleref uri="#close"/><ruleref uri="#app"/></item>"##.into());
         format!(
-            r#"<rule id="verb"><one-of>{}</one-of></rule><rule id="app"><one-of>{}</one-of></rule>"#,
+            r#"<rule id="verb"><one-of>{}</one-of></rule><rule id="close"><one-of>{}</one-of></rule><rule id="app"><one-of>{}</one-of></rule>"#,
             VERBS.iter().map(|v| item(v)).collect::<String>(),
+            CLOSE_VERBS.iter().map(|v| item(v)).collect::<String>(),
             names.iter().map(|n| item(n)).collect::<String>()
         )
     };
@@ -575,6 +587,15 @@ fn run(app: &AppHandle, action: &Action) -> Reply {
             }
             reply(format!("Opening {name}"), "check")
         }
+        Action::Close(name, id) => match winwatch::close_app(id) {
+            0 => reply(format!("{name} isn't open"), "help"),
+            _ => reply(format!("Closing {name}"), "check"),
+        },
+        Action::CloseActive => match winwatch::close_active() {
+            Some(t) if !t.is_empty() => reply(format!("Closing {t}"), "check"),
+            Some(_) => reply("Closing the window", "check"),
+            None => reply("No window to close", "help"),
+        },
         Action::Media(a) => {
             crate::media::control(a, None);
             reply(
@@ -687,7 +708,7 @@ fn ask(q: &str) -> Reply {
             "Try asking",
             "“What's the weather?” · “Set a timer for five minutes” · “Open WhatsApp”",
             "help",
-            "You can ask me the time, the weather or your next meeting, set a timer, control music, or open any app.",
+            "You can ask me the time, the weather or your next meeting, set a timer, control music, or open and close any app.",
         ),
     }
 }
@@ -1211,6 +1232,9 @@ mod tests {
         assert!(matches!(find("open whatsapp"), Some(Action::Open(n, _)) if n == "WhatsApp"));
         assert!(matches!(find("open chrome"), Some(Action::Open(n, _)) if n == "Google Chrome"));
         assert!(matches!(find("switch to google chrome"), Some(Action::Open(..))));
+        assert!(matches!(find("close whatsapp"), Some(Action::Close(n, _)) if n == "WhatsApp"));
+        assert!(matches!(find("quit chrome"), Some(Action::Close(n, _)) if n == "Google Chrome"));
+        assert_eq!(find("close this window"), Some(Action::CloseActive));
         assert_eq!(find("open calendar"), Some(Action::Panel("calendar")), "commands win over apps");
         assert_eq!(find("volume 40"), Some(Action::Volume(Some(0.4), false)));
         assert_eq!(find("what's the weather"), Some(Action::Ask("weather")));

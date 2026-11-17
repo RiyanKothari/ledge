@@ -463,7 +463,7 @@ export const call = {
   listen: () => invoke("voice_listen"),
   shell: (action: "start" | "search" | "quickSettings" | "notifications" | "desktop" | "taskManager") =>
     invoke("shell_action", { action }),
-  openSettings: () => invoke("open_settings"),
+  openSettings: (tab?: string) => invoke("open_settings", { tab: tab ?? null }),
   quit: () => invoke("quit"),
   peek: (on: boolean) => invoke<boolean>("taskbar_peek", { on }),
   media: (action: "toggle" | "next" | "previous" | "seek" | "shuffle" | "repeat", positionMs?: number) =>

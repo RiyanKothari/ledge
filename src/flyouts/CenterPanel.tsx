@@ -296,7 +296,7 @@ export function CenterPanel() {
 
       <Section title={sel.toDateString() === new Date().toDateString() ? "Today" : sel.toLocaleDateString([], { weekday: "long", day: "numeric", month: "short" })}>
         {!cal?.configured ? (
-          <button className="link" onClick={() => call.openSettings()}>Connect Google, Outlook or iCloud calendar…</button>
+          <button className="link" onClick={() => call.openSettings("apps")}>Connect Google, Outlook or iCloud calendar…</button>
         ) : dayEvents.length === 0 ? (
           <p className="empty">Nothing scheduled.</p>
         ) : (

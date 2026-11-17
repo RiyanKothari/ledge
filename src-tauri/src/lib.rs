@@ -379,8 +379,20 @@ fn taskbar_peek(on: bool) -> bool {
 
 // Window creation must not happen in a sync command on Windows (deadlock).
 #[tauri::command]
-async fn open_settings(app: AppHandle) -> Res<()> {
+async fn open_settings(app: AppHandle, tab: Option<String>) -> Res<()> {
+    if let Some(t) = tab {
+        *SETTINGS_TAB.lock().unwrap_or_else(|e| e.into_inner()) = Some(t.clone());
+        let _ = app.emit_to("settings", "settings-tab", t);
+    }
     open_settings_window(&app).await
+}
+
+/// The section Settings should open on (set by a "Connect…" link elsewhere).
+static SETTINGS_TAB: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+#[tauri::command]
+fn settings_tab_take() -> Option<String> {
+    SETTINGS_TAB.lock().unwrap_or_else(|e| e.into_inner()).take()
 }
 
 /// The first-run welcome tour (also from Settings → General).
@@ -517,6 +529,7 @@ pub fn run() {
             preview_hide,
             preview_hover,
             open_settings,
+            settings_tab_take,
             quit,
         ])
         .setup(|app| {

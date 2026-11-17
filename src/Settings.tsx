@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
+import ConnectedApps from "./ConnectedApps";
 import { ACCENTS, STYLES } from "./looks";
 import { call, DOCK_LABELS, dockOrder, useAppearance, useIcon, type Appearance, type Config, type Pin, type Widgets } from "./ipc";
 
@@ -17,13 +18,13 @@ const WIDGET_LABELS: [keyof Widgets, string][] = [
   ["weather", "Weather"],
 ];
 
-type Section = "appearance" | "dock" | "notifications" | "claude" | "widgets" | "general";
+type Section = "appearance" | "dock" | "notifications" | "apps" | "widgets" | "general";
 const SECTIONS: [Section, string, string][] = [
   ["appearance", "Appearance", "linear-gradient(150deg,#7dd3fc,#3b82f6)"],
   ["dock", "Dock", "linear-gradient(150deg,#93c5fd,#1d4ed8)"],
   ["notifications", "Notifications", "linear-gradient(150deg,#fca5a5,#e11d48)"],
-  ["claude", "Claude", "linear-gradient(150deg,#f4a582,#d97757)"],
-  ["widgets", "Widgets & data", "linear-gradient(150deg,#86efac,#16a34a)"],
+  ["apps", "Connected apps", "linear-gradient(150deg,#c4b5fd,#7c3aed)"],
+  ["widgets", "Widgets", "linear-gradient(150deg,#86efac,#16a34a)"],
   ["general", "General", "linear-gradient(150deg,#d4d4d8,#71717a)"],
 ];
 
@@ -94,6 +95,8 @@ export default function Settings() {
   const [voiceKey, setVoiceKey] = useState("");
   useEffect(() => {
     invoke<string>("voice_hotkey").then(setVoiceKey);
+    invoke<string | null>("settings_tab_take").then((t) => t && setTab(t as Section));
+    const offTab = listen<string>("settings-tab", (e) => setTab(e.payload as Section));
     invoke<Config>("get_config").then((c) => {
       setSaved(c);
       setDraft(c);
@@ -106,6 +109,7 @@ export default function Settings() {
     });
     return () => {
       off.then((f) => f());
+      offTab.then((f) => f());
     };
   }, []);
   useAppearance(draft?.appearance);
@@ -346,70 +350,17 @@ export default function Settings() {
           </>
         )}
 
-        {tab === "claude" && (
-          <>
-            <h2>Claude</h2>
-            <div className="card-group">
-              <div className="row">
-                <span>
-                  claude.ai usage{saved?.claudeWeb ? " · connected" : ""}
-                  <small>The same 5-hour and weekly numbers as claude.ai → Settings → Usage. You sign in once in a Ledge window; Ledge never sees your password.</small>
-                </span>
-                <button className="primary" onClick={() => call.claudeConnect()}>
-                  {saved?.claudeWeb ? "Sign in again" : "Connect"}
-                </button>
-              </div>
-              {saved?.claudeWeb && <Toggle on={draft.claudeWeb} onChange={(v) => set("claudeWeb", v)} label="Use claude.ai numbers" />}
-              <Toggle
-                on={draft.claudeLiveLimits}
-                onChange={(v) => set("claudeLiveLimits", v)}
-                label="Command-line sign-in"
-                hint="Uses ~/.claude/.credentials.json when the command-line Claude Code made one, sent only to api.anthropic.com."
-              />
-            </div>
-            <p className="hint">
-              Not connected, Ledge estimates from Claude Code's own logs (it learns your 5-hour limit the last time Claude Code was told “limit reached”).
-              Chats in the Claude app aren't in those logs, so the estimate runs low when you use both.
-            </p>
-          </>
-        )}
+        {tab === "apps" && <ConnectedApps draft={draft} saved={saved} set={set} />}
 
         {tab === "widgets" && (
           <>
-            <h2>Widgets & data</h2>
+            <h2>Widgets</h2>
             <div className="card-group">
               {WIDGET_LABELS.map(([k, label]) => (
                 <Toggle key={k} on={draft.widgets[k]} onChange={(v) => set("widgets", { ...draft.widgets, [k]: v })} label={label} />
               ))}
             </div>
-            <h3>Weather</h3>
-            <div className="card-group">
-              <label className="row">
-                <span>City</span>
-                <input value={draft.city} placeholder="e.g. Mumbai" onChange={(e) => set("city", e.target.value, true)} />
-              </label>
-              <Toggle on={draft.fahrenheit} onChange={(v) => set("fahrenheit", v)} label="Fahrenheit" />
-            </div>
-            {saved?.placeLabel && saved.city === draft.city && <p className="hint">Showing weather for {saved.placeLabel}.</p>}
-            <h3>Calendars</h3>
-            <p className="hint">
-              One secret iCal address per line (Google: calendar settings → “Secret address in iCal format”; Outlook: Publish → ICS; iCloud: public calendar).
-              Events you add in Ledge's own calendar live on this PC.
-            </p>
-            <textarea
-              rows={3}
-              spellCheck={false}
-              value={draft.icsUrls.join("\n")}
-              placeholder="https://calendar.google.com/calendar/ical/…/basic.ics"
-              onChange={(e) => set("icsUrls", e.target.value.split("\n"), true)}
-            />
-            <h3>RennSquare</h3>
-            <div className="card-group">
-              <label className="row">
-                <span>live.json</span>
-                <input value={draft.portfolioPath} spellCheck={false} onChange={(e) => set("portfolioPath", e.target.value, true)} />
-              </label>
-            </div>
+            <p className="hint">Weather, calendars, Claude and the rest are set up in Connected apps.</p>
           </>
         )}
 
@@ -432,7 +383,7 @@ export default function Settings() {
             </div>
             <p className="hint">
               Or press <code>{voiceKey || "the mic on the dock"}</code> (or the mic on the dock) and just ask. Questions: “what time is it”, “what's the weather”,
-              “how much battery”, “what's playing”, “what's next on my calendar”, “Claude usage”, “set a timer for ten minutes”. Commands: “open Chrome”, “pause”,
+              “how much battery”, “what's playing”, “what's next on my calendar”, “Claude usage”, “set a timer for ten minutes”. Commands: “open Chrome”, “close WhatsApp”, “close this window”, “pause”,
               “next song”, “volume forty”, “do not disturb on”, “Wi-Fi off”, “lock the computer”, “take a screenshot”.
             </p>
             <p className="hint">
