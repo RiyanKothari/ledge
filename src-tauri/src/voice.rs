@@ -136,7 +136,9 @@ fn spoken(name: &str) -> Vec<String> {
 }
 
 const VERBS: [&str; 4] = ["open", "launch", "start", "switch to"];
-const WAKE: [&str; 5] = ["hey ledge", "hi ledge", "hello ledge", "ok ledge", "okay ledge"];
+/// Wake phrases, including what "Hey Ledge" often sounds like to the engine.
+const WAKE: [&str; 11] =
+    ["hey ledge", "hi ledge", "hello ledge", "ok ledge", "okay ledge", "hey ledger", "hey lege", "hey lodge", "a ledge", "hey ledges", "ledge"];
 
 /// Ledge's own commands and questions (not "open <app>").
 pub fn commands() -> Vec<(String, Action)> {
@@ -309,7 +311,7 @@ pub fn grammar(lang: &str, apps: &[shell::AppEntry]) -> String {
         r##"<?xml version="1.0" encoding="UTF-8"?>
 <grammar version="1.0" xml:lang="{lang}" root="top" xmlns="http://www.w3.org/2001/06/grammar">
 <rule id="top" scope="public"><one-of>
-<item><ruleref uri="#wake"/><item repeat="0-1"><ruleref uri="#cmd"/></item></item>
+<item><item repeat="0-1"><ruleref special="GARBAGE"/></item><ruleref uri="#wake"/><item repeat="0-1"><ruleref uri="#cmd"/></item></item>
 <item><ruleref uri="#cmd"/></item>
 </one-of></rule>
 <rule id="wake"><one-of>{wake}</one-of></rule>
@@ -707,13 +709,14 @@ static SHOWN: AtomicBool = AtomicBool::new(false);
 static GEN: AtomicU64 = AtomicU64::new(0);
 static WATCHING: AtomicBool = AtomicBool::new(false);
 
-/// Splits "hey ledge open whatsapp" into "open whatsapp"; None if it doesn't start with a wake phrase.
+/// Splits "(um) hey ledge open whatsapp" into "open whatsapp"; None without a wake phrase.
+/// The wake phrase may come after other words; the earliest (then longest) wins.
 pub fn after_wake(text: &str) -> Option<String> {
-    let t = canon(text);
-    WAKE.iter().find_map(|w| {
-        let rest = t.strip_prefix(w)?;
-        (rest.is_empty() || rest.starts_with(' ')).then(|| rest.trim().to_string())
-    })
+    let t = format!(" {} ", canon(text));
+    WAKE.iter()
+        .filter_map(|w| t.find(&format!(" {w} ")).map(|i| (i, std::cmp::Reverse(w.len()), i + w.len() + 1)))
+        .min()
+        .map(|(_, _, end)| t[end..].trim().to_string())
 }
 
 fn text_case(s: &str) -> String {
@@ -820,10 +823,21 @@ fn on_result(app: &AppHandle, text: &str, conf: SpeechRecognitionConfidence) {
         _ => "rejected",
     };
     log(&format!("heard \"{text}\" ({level}){}", if SPEAKING.load(Ordering::SeqCst) { " [ignored: speaking]" } else { "" }));
-    if conf == SpeechRecognitionConfidence::Rejected || text.trim().is_empty() || SPEAKING.load(Ordering::SeqCst) {
+    RESULTS.fetch_add(1, Ordering::SeqCst);
+    if text.trim().is_empty() || SPEAKING.load(Ordering::SeqCst) {
         return;
     }
-    if let Some(rest) = after_wake(text) {
+    // Already handled from the live words (the engine was slow to finish).
+    if FALLBACK.lock().unwrap_or_else(|e| e.into_inner()).as_ref().is_some_and(|(t, at)| at.elapsed() < Duration::from_secs(4) && *t == after_wake(text).unwrap_or_else(|| canon(text))) {
+        return;
+    }
+    let wake = after_wake(text);
+    // A low-scoring result still counts when it carries the wake word: that's
+    // what makes "Hey Ledge" feel deaf otherwise.
+    if conf == SpeechRecognitionConfidence::Rejected && wake.is_none() {
+        return;
+    }
+    if let Some(rest) = wake {
         if rest.is_empty() {
             arm(app, true);
         } else {
@@ -849,7 +863,35 @@ fn on_hypothesis(app: &AppHandle, text: &str) {
     let words = rest.unwrap_or_else(|| canon(text));
     publish(app, "listening", "", &reply(if words.is_empty() { "Listening…".to_string() } else { text_case(&words) }, "mic"));
     show(app, true);
+    // If Windows drops the final result (it does, for quiet or quick speech),
+    // act on the last live words once you've paused.
+    let id = HYP.fetch_add(1, Ordering::SeqCst) + 1;
+    let seen = RESULTS.load(Ordering::SeqCst);
+    let (app, text) = (app.clone(), text.to_string());
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(1100));
+        if HYP.load(Ordering::SeqCst) != id || RESULTS.load(Ordering::SeqCst) != seen || SPEAKING.load(Ordering::SeqCst) {
+            return;
+        }
+        let cmd = match after_wake(&text) {
+            Some(rest) => rest,
+            None if armed() => canon(&text),
+            None => return,
+        };
+        if cmd.is_empty() {
+            log(&format!("live words \"{text}\": wake only"));
+            arm(&app, true);
+        } else if lookup(&cmd).is_some() {
+            log(&format!("live words \"{text}\": no final result, running it"));
+            *FALLBACK.lock().unwrap_or_else(|e| e.into_inner()) = Some((canon(&cmd), Instant::now()));
+            execute(&app, &cmd);
+        }
+    });
 }
+
+static HYP: AtomicU64 = AtomicU64::new(0);
+static RESULTS: AtomicU64 = AtomicU64::new(0);
+static FALLBACK: Mutex<Option<(String, Instant)>> = Mutex::new(None);
 
 fn stop() {
     GEN.fetch_add(1, Ordering::SeqCst);
@@ -1104,7 +1146,10 @@ mod tests {
         assert_eq!(after_wake("Hey Ledge open WhatsApp").as_deref(), Some("open whatsapp"));
         assert_eq!(after_wake("hey ledge").as_deref(), Some(""));
         assert_eq!(after_wake("OK Ledge, what's the time?").as_deref(), Some("whats the time"));
-        assert_eq!(after_wake("hey ledger"), None);
+        assert_eq!(after_wake("hey ledger").as_deref(), Some(""));
+        assert_eq!(after_wake("um so hey ledge open spotify").as_deref(), Some("open spotify"));
+        assert_eq!(after_wake("ledge what time is it").as_deref(), Some("what time is it"));
+        assert_eq!(after_wake("the knowledge base"), None);
         assert_eq!(after_wake("open whatsapp"), None);
     }
 
