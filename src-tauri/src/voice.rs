@@ -139,9 +139,10 @@ fn spoken(name: &str) -> Vec<String> {
 
 const VERBS: [&str; 4] = ["open", "launch", "start", "switch to"];
 const CLOSE_VERBS: [&str; 3] = ["close", "quit", "exit"];
-/// Wake phrases, including what "Hey Ledge" often sounds like to the engine.
-const WAKE: [&str; 11] =
-    ["hey ledge", "hi ledge", "hello ledge", "ok ledge", "okay ledge", "hey ledger", "hey lege", "hey lodge", "a ledge", "hey ledges", "ledge"];
+/// Wake phrases. The first five are the real thing; the rest are what "Hey
+/// Ledge" often sounds like to the engine, so they only count when it's sure.
+const WAKE: [&str; 9] = ["hey ledge", "hi ledge", "hello ledge", "ok ledge", "okay ledge", "hey ledger", "hey lege", "hey ledges", "hey lodge"];
+const STRONG_WAKES: usize = 5;
 
 /// Ledge's own commands and questions (not "open <app>").
 pub fn commands() -> Vec<(String, Action)> {
@@ -733,11 +734,54 @@ static WATCHING: AtomicBool = AtomicBool::new(false);
 /// Splits "(um) hey ledge open whatsapp" into "open whatsapp"; None without a wake phrase.
 /// The wake phrase may come after other words; the earliest (then longest) wins.
 pub fn after_wake(text: &str) -> Option<String> {
+    wake_split(text).map(|(_, rest)| rest)
+}
+
+/// (was it a clear "Hey/Hi/OK Ledge", the command after it).
+pub fn wake_split(text: &str) -> Option<(bool, String)> {
     let t = format!(" {} ", canon(text));
     WAKE.iter()
-        .filter_map(|w| t.find(&format!(" {w} ")).map(|i| (i, std::cmp::Reverse(w.len()), i + w.len() + 1)))
+        .enumerate()
+        .filter_map(|(n, w)| t.find(&format!(" {w} ")).map(|i| (i, std::cmp::Reverse(w.len()), n, i + w.len() + 1)))
         .min()
-        .map(|(_, _, end)| t[end..].trim().to_string())
+        .map(|(_, _, n, end)| (n < STRONG_WAKES, t[end..].trim().to_string()))
+}
+
+/// Commands that interrupt you if Ledge mishears: these need a confident match.
+fn risky(a: &Action) -> bool {
+    matches!(a, Action::Lock | Action::Close(..) | Action::CloseActive | Action::Screenshot | Action::Radio(_, false) | Action::Shell(_))
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Decision {
+    Ignore,
+    /// Wake up and wait for the command.
+    Arm,
+    Run(String),
+}
+
+/// What to do with something the engine heard. `sure` = medium or high confidence.
+///  - a clear "Hey Ledge" wakes Ledge even when the engine is unsure;
+///  - a near-miss ("hey ledger") only when it's sure;
+///  - risky commands (lock, close, screenshot, radios off) only when it's sure;
+///    otherwise Ledge just wakes and waits for you to say it again;
+///  - without a wake word, a command only counts while Ledge is awake.
+pub fn decide(text: &str, sure: bool, armed: bool, find: impl Fn(&str) -> Option<Action>) -> Decision {
+    match wake_split(text) {
+        Some((strong, _)) if !strong && !sure => Decision::Ignore,
+        Some((_, rest)) if rest.is_empty() => Decision::Arm,
+        Some((_, rest)) => match find(&rest) {
+            Some(a) if risky(&a) && !sure => Decision::Arm,
+            Some(_) => Decision::Run(rest),
+            None => Decision::Arm,
+        },
+        None if armed => match find(text) {
+            Some(a) if risky(&a) && !sure => Decision::Ignore,
+            Some(_) => Decision::Run(canon(text)),
+            None => Decision::Ignore,
+        },
+        None => Decision::Ignore,
+    }
 }
 
 fn text_case(s: &str) -> String {
@@ -852,20 +896,14 @@ fn on_result(app: &AppHandle, text: &str, conf: SpeechRecognitionConfidence) {
     if FALLBACK.lock().unwrap_or_else(|e| e.into_inner()).as_ref().is_some_and(|(t, at)| at.elapsed() < Duration::from_secs(4) && *t == after_wake(text).unwrap_or_else(|| canon(text))) {
         return;
     }
-    let wake = after_wake(text);
-    // A low-scoring result still counts when it carries the wake word: that's
-    // what makes "Hey Ledge" feel deaf otherwise.
-    if conf == SpeechRecognitionConfidence::Rejected && wake.is_none() {
+    if conf == SpeechRecognitionConfidence::Rejected {
         return;
     }
-    if let Some(rest) = wake {
-        if rest.is_empty() {
-            arm(app, true);
-        } else {
-            execute(app, &rest);
-        }
-    } else if armed() {
-        execute(app, text);
+    let sure = matches!(conf, SpeechRecognitionConfidence::High | SpeechRecognitionConfidence::Medium);
+    match decide(text, sure, armed(), lookup) {
+        Decision::Run(cmd) => execute(app, &cmd),
+        Decision::Arm => arm(app, true),
+        Decision::Ignore => log("  (ignored: not sure enough)"),
     }
 }
 
@@ -882,18 +920,17 @@ fn on_hypothesis(app: &AppHandle, text: &str) {
             log(&format!("hearing \"{text}\""));
         }
     }
-    let rest = after_wake(text);
-    if rest.is_none() && !armed() {
-        return;
+    // Live words are guesses: they never wake Ledge by themselves (that's what
+    // made it start on its own). While it's awake they show as you speak.
+    if armed() {
+        let words = after_wake(text).unwrap_or_else(|| canon(text));
+        if !words.is_empty() {
+            publish(app, "listening", "", &reply(text_case(&words), "mic"));
+        }
     }
-    if rest.is_some() && !armed() {
-        arm_quiet(app);
-    }
-    let words = rest.unwrap_or_else(|| canon(text));
-    publish(app, "listening", "", &reply(if words.is_empty() { "Listening…".to_string() } else { text_case(&words) }, "mic"));
-    show(app, true);
     // If Windows drops the final result (it does, for quiet or quick speech),
-    // act on the last live words once you've paused.
+    // act on the last live words once you've paused: only for a clear
+    // "Hey Ledge ..." (or while awake), and never for a risky command.
     let id = HYP.fetch_add(1, Ordering::SeqCst) + 1;
     let seen = RESULTS.load(Ordering::SeqCst);
     let (app, text) = (app.clone(), text.to_string());
@@ -902,18 +939,20 @@ fn on_hypothesis(app: &AppHandle, text: &str) {
         if HYP.load(Ordering::SeqCst) != id || RESULTS.load(Ordering::SeqCst) != seen || SPEAKING.load(Ordering::SeqCst) {
             return;
         }
-        let cmd = match after_wake(&text) {
-            Some(rest) => rest,
-            None if armed() => canon(&text),
-            None => return,
-        };
-        if cmd.is_empty() {
-            log(&format!("live words \"{text}\": wake only"));
-            arm(&app, true);
-        } else if lookup(&cmd).is_some() {
-            log(&format!("live words \"{text}\": no final result, running it"));
-            *FALLBACK.lock().unwrap_or_else(|e| e.into_inner()) = Some((canon(&cmd), Instant::now()));
-            execute(&app, &cmd);
+        if matches!(wake_split(&text), Some((false, _))) {
+            return;
+        }
+        match decide(&text, false, armed(), lookup) {
+            Decision::Run(cmd) => {
+                log(&format!("live words \"{text}\": no final result, running it"));
+                *FALLBACK.lock().unwrap_or_else(|e| e.into_inner()) = Some((canon(&cmd), Instant::now()));
+                execute(&app, &cmd);
+            }
+            Decision::Arm if wake_split(&text).is_some() => {
+                log(&format!("live words \"{text}\": waking"));
+                arm(&app, true);
+            }
+            _ => {}
         }
     });
 }
@@ -1205,9 +1244,33 @@ mod tests {
         assert_eq!(after_wake("OK Ledge, what's the time?").as_deref(), Some("whats the time"));
         assert_eq!(after_wake("hey ledger").as_deref(), Some(""));
         assert_eq!(after_wake("um so hey ledge open spotify").as_deref(), Some("open spotify"));
-        assert_eq!(after_wake("ledge what time is it").as_deref(), Some("what time is it"));
+        assert_eq!(after_wake("ledge what time is it"), None, "a bare 'ledge' is too easy to hear by accident");
         assert_eq!(after_wake("the knowledge base"), None);
         assert_eq!(after_wake("open whatsapp"), None);
+    }
+
+    #[test]
+    fn only_confident_matches_do_risky_things() {
+        let apps = vec![shell::AppEntry { name: "WhatsApp".into(), id: "w".into() }];
+        let map: HashMap<String, Action> = phrases(&apps).into_iter().map(|(p, a)| (canon(&p), a)).collect();
+        let find = |c: &str| map.get(&canon(c)).cloned();
+        // The 13:50 mishearing that locked the PC: unsure + near-miss wake.
+        assert_eq!(decide("hey lege lock", false, false, find), Decision::Ignore);
+        assert_eq!(decide("hey ledges screenshot", false, false, find), Decision::Ignore);
+        // A clear wake but an unsure risky command: wake and wait, don't act.
+        assert_eq!(decide("hey ledge lock", false, false, find), Decision::Arm);
+        assert_eq!(decide("hey ledge close whatsapp", false, false, find), Decision::Arm);
+        assert_eq!(decide("hey ledge close whatsapp", true, false, find), Decision::Run("close whatsapp".into()));
+        // Clear wake, harmless command: runs even when unsure (so it isn't deaf).
+        assert_eq!(decide("hey ledge what time is it", false, false, find), Decision::Run("what time is it".into()));
+        assert_eq!(decide("hey ledge", false, false, find), Decision::Arm);
+        // A near-miss wake counts when the engine is sure.
+        assert_eq!(decide("hey ledger open whatsapp", true, false, find), Decision::Run("open whatsapp".into()));
+        // No wake word: only while awake, and risky only when sure.
+        assert_eq!(decide("open whatsapp", true, false, find), Decision::Ignore);
+        assert_eq!(decide("open whatsapp", false, true, find), Decision::Run("open whatsapp".into()));
+        assert_eq!(decide("lock", false, true, find), Decision::Ignore);
+        assert_eq!(decide("lock", true, true, find), Decision::Run("lock".into()));
     }
 
     #[test]
